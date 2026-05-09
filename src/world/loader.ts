@@ -1,4 +1,23 @@
-import matter from 'gray-matter'
+import { parse as parseYaml } from 'yaml'
+
+interface ParsedFile {
+  data: Record<string, unknown>
+  content: string
+}
+
+const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/
+
+function matter(raw: string): ParsedFile {
+  const match = raw.match(FRONTMATTER_RE)
+  if (!match) {
+    return { data: {}, content: raw }
+  }
+  const yamlSrc = match[1] ?? ''
+  const content = match[2] ?? ''
+  const parsed = parseYaml(yamlSrc)
+  const data = (parsed && typeof parsed === 'object' ? parsed : {}) as Record<string, unknown>
+  return { data, content }
+}
 import type { Room, RoomDescriptions, Item } from './types'
 import type { Direction } from '../engine/types'
 import { roomFrontmatterSchema, itemFrontmatterSchema, endingFrontmatterSchema, encounterFrontmatterSchema } from './schema'
