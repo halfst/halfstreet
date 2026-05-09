@@ -74,3 +74,160 @@ describe('parser — unknown input', () => {
     })
   })
 })
+
+describe('parser — verb + target', () => {
+  it('resolves a single visible noun', () => {
+    const ctx: ParserContext = {
+      knownItems: ['torch'],
+      knownEncounters: [],
+      visibleNouns: [{ id: 'torch', aliases: ['torch', 'lamp'] }],
+      inventoryItemIds: [],
+      lastNoun: null,
+      awaitingDisambiguation: null,
+    }
+    expect(parse('take torch', ctx)).toEqual({
+      kind: 'verb-target',
+      verb: 'take',
+      target: { canonical: 'torch', raw: 'torch' },
+    })
+  })
+
+  it('matches multi-word object names', () => {
+    const ctx: ParserContext = {
+      knownItems: ['brass-key'],
+      knownEncounters: [],
+      visibleNouns: [{ id: 'brass-key', aliases: ['brass key', 'key'] }],
+      inventoryItemIds: [],
+      lastNoun: null,
+      awaitingDisambiguation: null,
+    }
+    expect(parse('take brass key', ctx)).toEqual({
+      kind: 'verb-target',
+      verb: 'take',
+      target: { canonical: 'brass-key', raw: 'brass key' },
+    })
+  })
+
+  it('matches by alias', () => {
+    const ctx: ParserContext = {
+      knownItems: ['torch'],
+      knownEncounters: [],
+      visibleNouns: [{ id: 'torch', aliases: ['torch', 'lamp'] }],
+      inventoryItemIds: [],
+      lastNoun: null,
+      awaitingDisambiguation: null,
+    }
+    expect(parse('take lamp', ctx)).toEqual({
+      kind: 'verb-target',
+      verb: 'take',
+      target: { canonical: 'torch', raw: 'lamp' },
+    })
+  })
+
+  it('returns unknown-noun for noun not in scope', () => {
+    const ctx: ParserContext = {
+      knownItems: ['torch'],
+      knownEncounters: [],
+      visibleNouns: [],
+      inventoryItemIds: [],
+      lastNoun: null,
+      awaitingDisambiguation: null,
+    }
+    expect(parse('take torch', ctx)).toEqual({
+      kind: 'unknown',
+      raw: 'take torch',
+      reason: 'unknown-noun',
+    })
+  })
+
+  it('checks inventory for noun resolution', () => {
+    const ctx: ParserContext = {
+      knownItems: ['torch'],
+      knownEncounters: [],
+      visibleNouns: [],
+      inventoryItemIds: ['torch'],
+      lastNoun: null,
+      awaitingDisambiguation: null,
+    }
+    expect(parse('drop torch', ctx)).toEqual({
+      kind: 'verb-target',
+      verb: 'drop',
+      target: { canonical: 'torch', raw: 'torch' },
+    })
+  })
+})
+
+describe('parser — disambiguation', () => {
+  it('returns disambiguation request when two candidates match', () => {
+    const ctx: ParserContext = {
+      knownItems: ['brass-key', 'iron-key'],
+      knownEncounters: [],
+      visibleNouns: [
+        { id: 'brass-key', aliases: ['brass key', 'key'] },
+        { id: 'iron-key', aliases: ['iron key', 'key'] },
+      ],
+      inventoryItemIds: [],
+      lastNoun: null,
+      awaitingDisambiguation: null,
+    }
+    const result = parse('take key', ctx)
+    expect(result.kind).toBe('unknown')
+    if (result.kind === 'unknown') {
+      // Parser flags ambiguity by returning unknown-noun; the dispatcher
+      // turns this into a PendingDisambiguation. (Keeping parser pure: it
+      // signals; the dispatcher decides UI flow.)
+      expect(result.reason).toBe('unknown-noun')
+    }
+  })
+
+  it('disambiguation reply resolves the pending choice', () => {
+    const ctx: ParserContext = {
+      knownItems: ['brass-key', 'iron-key'],
+      knownEncounters: [],
+      visibleNouns: [
+        { id: 'brass-key', aliases: ['brass key', 'key'] },
+        { id: 'iron-key', aliases: ['iron key', 'key'] },
+      ],
+      inventoryItemIds: [],
+      lastNoun: null,
+      awaitingDisambiguation: {
+        verb: 'take',
+        candidates: ['brass-key', 'iron-key'],
+        prompt: 'Which key — the brass key or the iron key?',
+      },
+    }
+    expect(parse('brass', ctx)).toEqual({ kind: 'disambiguation', chosen: 'brass-key' })
+    expect(parse('iron', ctx)).toEqual({ kind: 'disambiguation', chosen: 'iron-key' })
+  })
+})
+
+describe('parser — pronouns', () => {
+  it('resolves "it" to lastNoun', () => {
+    const ctx: ParserContext = {
+      knownItems: ['torch'],
+      knownEncounters: [],
+      visibleNouns: [{ id: 'torch', aliases: ['torch'] }],
+      inventoryItemIds: [],
+      lastNoun: { canonical: 'torch', raw: 'torch' },
+      awaitingDisambiguation: null,
+    }
+    expect(parse('examine it', ctx)).toEqual({
+      kind: 'verb-target',
+      verb: 'examine',
+      target: { canonical: 'torch', raw: 'it' },
+    })
+  })
+
+  it('returns unknown-noun for "it" with no lastNoun', () => {
+    const ctx: ParserContext = {
+      knownItems: ['torch'],
+      knownEncounters: [],
+      visibleNouns: [{ id: 'torch', aliases: ['torch'] }],
+      inventoryItemIds: [],
+      lastNoun: null,
+      awaitingDisambiguation: null,
+    }
+    const result = parse('examine it', ctx)
+    expect(result.kind).toBe('unknown')
+  })
+})

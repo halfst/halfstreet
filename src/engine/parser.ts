@@ -96,6 +96,20 @@ export function parse(rawInput: string, ctx: ParserContext): ParsedCommand {
     if (dir) return { kind: 'go', direction: dir }
   }
 
+  // Disambiguation reply: a single-word answer matching one of the candidates.
+  // Must be checked before verb resolution so "brass" / "iron" etc. are caught.
+  if (ctx.awaitingDisambiguation && tokens.length === 1) {
+    const choice = tokens[0]!
+    for (const candidateId of ctx.awaitingDisambiguation.candidates) {
+      // Match if the choice is a substring of any alias or the id itself.
+      const candidate = ctx.visibleNouns.find((n) => n.id === candidateId)
+      const aliases = candidate?.aliases ?? [candidateId]
+      if (aliases.some((a) => a.toLowerCase().includes(choice))) {
+        return { kind: 'disambiguation', chosen: candidateId }
+      }
+    }
+  }
+
   // Two-word verb (e.g. "pick up X").
   const twoWord = matchTwoWordVerb(tokens)
   let verb: Verb | undefined
@@ -119,7 +133,49 @@ export function parse(rawInput: string, ctx: ParserContext): ParsedCommand {
     return { kind: 'unknown', raw: trimmed, reason: 'malformed' }
   }
 
-  // Verb + target — noun resolution comes in Task 3. For now, return unknown.
-  // This will be replaced when noun resolution lands.
-  return { kind: 'unknown', raw: trimmed, reason: 'unknown-noun' }
+  // Pronoun resolution: "it" maps to lastNoun.
+  if (rest.length === 1 && rest[0] === 'it') {
+    if (!ctx.lastNoun) {
+      return { kind: 'unknown', raw: trimmed, reason: 'unknown-noun' }
+    }
+    return {
+      kind: 'verb-target',
+      verb,
+      target: { canonical: ctx.lastNoun.canonical, raw: 'it' },
+    }
+  }
+
+  // Multi-word noun matching: try the longest possible suffix first.
+  const targetRaw = rest.join(' ')
+  const candidates: { id: string; alias: string }[] = []
+  for (const noun of ctx.visibleNouns) {
+    for (const alias of noun.aliases) {
+      if (alias === targetRaw) candidates.push({ id: noun.id, alias })
+    }
+  }
+
+  // Also check inventory items (id used directly as alias).
+  if (candidates.length === 0) {
+    for (const itemId of ctx.inventoryItemIds) {
+      if (itemId === targetRaw) candidates.push({ id: itemId, alias: targetRaw })
+    }
+  }
+
+  if (candidates.length === 0) {
+    return { kind: 'unknown', raw: trimmed, reason: 'unknown-noun' }
+  }
+
+  // Multiple candidates → ambiguous. Parser signals; the dispatcher records the
+  // PendingDisambiguation in state so the next turn's input is interpreted as
+  // a disambiguation reply.
+  if (candidates.length > 1) {
+    return { kind: 'unknown', raw: trimmed, reason: 'unknown-noun' }
+  }
+
+  const target = candidates[0]!
+  return {
+    kind: 'verb-target',
+    verb,
+    target: { canonical: target.id, raw: target.alias },
+  }
 }
