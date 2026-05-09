@@ -17,7 +17,7 @@ steps:
     commands:
       - npm run build
 
-  - name: notify-failure
+  - name: notify
     image: curlimages/curl:latest
     environment:
       PUSHOVER_TOKEN:
@@ -26,13 +26,21 @@ steps:
         from_secret: pushover_user
     commands:
       - |
+        if [ "$CI_PIPELINE_STATUS" = "success" ]; then
+          TITLE="Halfstreet CI passed"
+          PRIORITY=-1
+        else
+          TITLE="Halfstreet CI failed"
+          PRIORITY=0
+        fi
         curl -s \
           --form-string "token=$PUSHOVER_TOKEN" \
           --form-string "user=$PUSHOVER_USER" \
-          --form-string "title=Halfstreet CI failed" \
+          --form-string "title=$TITLE" \
+          --form-string "priority=$PRIORITY" \
           --form-string "message=$CI_COMMIT_BRANCH: $CI_COMMIT_MESSAGE" \
           --form-string "url=$CI_PIPELINE_URL" \
           --form-string "url_title=View pipeline" \
           https://api.pushover.net/1/messages.json
     when:
-      - status: failure
+      - status: [success, failure]
