@@ -1,4 +1,5 @@
 import type { EncounterDef } from './types'
+import { narration } from './loader'
 
 export const encounters: Record<string, EncounterDef> = {
   rat: {
@@ -7,17 +8,17 @@ export const encounters: Record<string, EncounterDef> = {
     initialPhase: 'lurking',
     phases: {
       lurking: {
-        description: 'A heavy rat watches you from the third step. Its eyes catch the light.',
+        description: narration('rat', 'lurking'),
         transitions: [
           {
             verb: 'attack',
             target: 'rat',
-            narration: 'You stamp. The rat squeals and is gone into the dark.',
+            narration: narration('rat', 'attack-rat-resolved'),
             to: 'resolved',
           },
           {
             verb: 'wait',
-            narration: 'The rat does not move. Neither do you.',
+            narration: narration('rat', 'wait-stays'),
             to: 'lurking',
           },
         ],
