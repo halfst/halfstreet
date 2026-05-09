@@ -4,6 +4,8 @@ import { dispatch, initialStateFor } from '../engine/dispatcher'
 import { saveState, loadState, clearSave } from '../engine/save'
 import { world } from '../world'
 import type { GameState, TranscriptLine } from '../engine/types'
+import { computeChips } from './chips'
+import { renderChips } from './chip-render'
 
 const transcriptEl = document.querySelector<HTMLDivElement>('[data-mystery-transcript]')
 const inputEl = document.querySelector<HTMLInputElement>('[data-mystery-input]')
@@ -21,6 +23,13 @@ if (!transcriptEl || !inputEl) {
     // Edge case: a restored state with no transcript (older save discarded
     // and we fell back to fresh — handled above — or a corrupted slice).
     state = initialStateFor(world)
+  }
+
+  function refreshChips(): void {
+    renderChips(computeChips(state, world), (command) => {
+      inputEl!.value = command
+      inputEl!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }))
+    })
   }
 
   const buildParserContext = (s: GameState): ParserContext => {
@@ -65,6 +74,7 @@ if (!transcriptEl || !inputEl) {
   }
 
   renderAll(state.transcript)
+  refreshChips()
   inputEl.focus()
 
   inputEl.addEventListener('keydown', (e) => {
@@ -88,6 +98,7 @@ if (!transcriptEl || !inputEl) {
       transcriptEl.innerHTML = ''
       renderAll(state.transcript)
       saveState(state)
+      refreshChips()
       return
     }
     if (trimmed === 'undo') {
@@ -96,6 +107,7 @@ if (!transcriptEl || !inputEl) {
         lastState = null
         appendLines([{ kind: 'system', text: '(undone)' }])
         saveState(state)
+        refreshChips()
       } else {
         appendLines([{ kind: 'system', text: 'There is no further back.' }])
       }
@@ -120,6 +132,7 @@ if (!transcriptEl || !inputEl) {
       if (raw.trim().toLowerCase() === 'theme') {
         document.dispatchEvent(new CustomEvent('halfstreet-toggle-theme'))
       }
+      refreshChips()
     } catch (err) {
       console.error('[halfstreet] dispatch error', err)
       appendLines([{ kind: 'system', text: '[ The terminal hums and resets. ]' }])
