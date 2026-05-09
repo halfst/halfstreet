@@ -72,7 +72,7 @@ export function applyVerbToEncounter(
   if (command.kind === 'verb-target') {
     verb = command.verb
     targetId = command.target.canonical
-  } else if (command.kind === 'verb-only' && command.verb !== 'inventory' && command.verb !== 'wait') {
+  } else if (command.kind === 'verb-only' && command.verb !== 'inventory') {
     verb = command.verb
   } else {
     return null

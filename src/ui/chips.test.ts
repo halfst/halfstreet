@@ -19,6 +19,13 @@ describe('computeChips — sample world', () => {
     expect(chips.find((c) => c.kind === 'item' && c.command === 'take letter')).toBeTruthy()
   })
 
+  it('removes TAKE chip after item is taken', () => {
+    let s = initialStateFor(world)
+    s = dispatch(s, { kind: 'verb-target', verb: 'take', target: { canonical: 'letter', raw: 'letter' } }, world).state
+    const chips = computeChips(s, world)
+    expect(chips.find((c) => c.command === 'take letter')).toBeUndefined()
+  })
+
   it('adds an encounter verb chip when an encounter is active', () => {
     let s = initialStateFor(world)
     s = dispatch(s, { kind: 'go', direction: 'n' }, world).state

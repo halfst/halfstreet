@@ -1,5 +1,6 @@
 import type { World } from '../world/types'
 import type { GameState, Direction } from '../engine/types'
+import { getItemsInRoom } from '../engine/dispatcher'
 
 export type ChipKind = 'direction' | 'item' | 'encounter' | 'meta'
 
@@ -33,10 +34,11 @@ export function computeChips(state: GameState, world: World): Chip[] {
     }
   }
 
-  // Item chips: TAKE for visible items.
-  for (const itemId of room.items) {
+  // Item chips: TAKE for visible items (dynamic list excludes taken items).
+  for (const itemId of getItemsInRoom(state, world, state.location)) {
     const item = world.items[itemId]
     if (!item || !item.takeable) continue
+    if (state.inventory.find((inst) => inst.id === itemId)) continue  // already held
     out.push({
       kind: 'item',
       label: `TAKE ${item.names[0]?.toUpperCase() ?? itemId.toUpperCase()}`,

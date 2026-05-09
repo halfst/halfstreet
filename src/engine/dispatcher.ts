@@ -39,7 +39,7 @@ function append(state: GameState, lines: TranscriptLine[]): GameState {
   return { ...state, transcript: transcript.slice(-TRANSCRIPT_CAP) }
 }
 
-function getItemsInRoom(state: GameState, world: World, roomId: string): string[] {
+export function getItemsInRoom(state: GameState, world: World, roomId: string): string[] {
   const baseItems = world.rooms[roomId]?.items ?? []
   const dropped = (state.roomState[roomId]?.['droppedItems'] as string[] | undefined) ?? []
   const taken = (state.roomState[roomId]?.['takenItems'] as string[] | undefined) ?? []
