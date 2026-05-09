@@ -23,6 +23,47 @@ if (!transcriptEl || !inputEl) {
     state = initialStateFor(world)
   }
 
+  const buildParserContext = (s: GameState): ParserContext => {
+    const room = world.rooms[s.location]
+    const visibleNouns: { id: string; aliases: string[] }[] = []
+    if (room) {
+      for (const id of room.items) {
+        const it = world.items[id]
+        if (it) visibleNouns.push({ id, aliases: it.names })
+      }
+      if (room.encounter && s.encounterState[room.encounter]) {
+        visibleNouns.push({ id: room.encounter, aliases: [room.encounter] })
+      }
+    }
+    for (const inst of s.inventory) {
+      const it = world.items[inst.id]
+      if (it) visibleNouns.push({ id: inst.id, aliases: it.names })
+    }
+    return {
+      knownItems: Object.keys(world.items),
+      knownEncounters: Object.keys(world.encounters),
+      visibleNouns,
+      inventoryItemIds: s.inventory.map((i) => i.id),
+      lastNoun: s.lastNoun,
+      awaitingDisambiguation: s.pendingDisambiguation,
+    }
+  }
+
+  const renderAll = (lines: TranscriptLine[]): void => {
+    if (!transcriptEl) return
+    for (const line of lines) {
+      const el = document.createElement('div')
+      el.className = line.kind
+      el.textContent = line.text
+      transcriptEl.appendChild(el)
+    }
+    transcriptEl.scrollTop = transcriptEl.scrollHeight
+  }
+
+  const appendLines = (lines: TranscriptLine[]): void => {
+    renderAll(lines)
+  }
+
   renderAll(state.transcript)
   inputEl.focus()
 
@@ -76,6 +117,9 @@ if (!transcriptEl || !inputEl) {
       appendLines(result.appended)
       saveState(state)
       transcriptEl.scrollTop = transcriptEl.scrollHeight
+      if (raw.trim().toLowerCase() === 'theme') {
+        document.dispatchEvent(new CustomEvent('halfstreet-toggle-theme'))
+      }
     } catch (err) {
       console.error('[halfstreet] dispatch error', err)
       appendLines([{ kind: 'system', text: '[ The terminal hums and resets. ]' }])
@@ -88,45 +132,4 @@ if (!transcriptEl || !inputEl) {
       window.location.href = '/'
     }
   })
-
-  function buildParserContext(s: GameState): ParserContext {
-    const room = world.rooms[s.location]
-    const visibleNouns: { id: string; aliases: string[] }[] = []
-    if (room) {
-      for (const id of room.items) {
-        const it = world.items[id]
-        if (it) visibleNouns.push({ id, aliases: it.names })
-      }
-      if (room.encounter && s.encounterState[room.encounter]) {
-        visibleNouns.push({ id: room.encounter, aliases: [room.encounter] })
-      }
-    }
-    for (const inst of s.inventory) {
-      const it = world.items[inst.id]
-      if (it) visibleNouns.push({ id: inst.id, aliases: it.names })
-    }
-    return {
-      knownItems: Object.keys(world.items),
-      knownEncounters: Object.keys(world.encounters),
-      visibleNouns,
-      inventoryItemIds: s.inventory.map((i) => i.id),
-      lastNoun: s.lastNoun,
-      awaitingDisambiguation: s.pendingDisambiguation,
-    }
-  }
-
-  function renderAll(lines: TranscriptLine[]): void {
-    if (!transcriptEl) return
-    for (const line of lines) {
-      const el = document.createElement('div')
-      el.className = line.kind
-      el.textContent = line.text
-      transcriptEl.appendChild(el)
-    }
-    transcriptEl.scrollTop = transcriptEl.scrollHeight
-  }
-
-  function appendLines(lines: TranscriptLine[]): void {
-    renderAll(lines)
-  }
 }
