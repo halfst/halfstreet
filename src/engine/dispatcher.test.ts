@@ -94,13 +94,60 @@ describe('dispatcher — go', () => {
     expect(r.state.location).toBe('hallway')
     expect(r.appended.some((l) => l.text.includes('locked'))).toBe(true)
   })
+})
 
-  it('opens a locked exit when required item is in inventory', () => {
-    // Locked-exit-with-key happy path is covered by the playthrough integration
-    // test in Task 8. The sample world above doesn't have an unlocked path to
-    // pick up the brass key without first traversing the locked door, so this
-    // test is intentionally a placeholder.
-    expect(true).toBe(true)
+describe('locked exits', () => {
+  function makeWorld(): World {
+    return {
+      startingRoom: 'antechamber',
+      startingInventory: [],
+      rooms: {
+        antechamber: {
+          id: 'antechamber',
+          title: '[ Antechamber ]',
+          descriptions: { firstVisit: '.', revisit: '.', examined: '.' },
+          exits: { n: 'vault' },
+          lockedExits: { n: { requires: 'rusted-key', lockedNarration: 'The door is locked.' } },
+          items: ['rusted-key'],
+        },
+        vault: {
+          id: 'vault',
+          title: '[ Vault ]',
+          descriptions: { firstVisit: 'You are inside.', revisit: '.', examined: '.' },
+          exits: {},
+          items: [],
+        },
+      },
+      items: {
+        'rusted-key': { id: 'rusted-key', names: ['rusted key', 'key'], short: 'a rusted key', long: '.', initialState: {}, takeable: true },
+      },
+      encounters: {},
+      endings: { true: { whenFlags: {}, narration: '' }, wrong: { whenFlags: {}, narration: '' }, bad: { whenFlags: {}, narration: '' } },
+    }
+  }
+
+  it('blocks movement without the key', () => {
+    const world = makeWorld()
+    const state = initialStateFor(world)
+    const result = dispatch(state, { kind: 'go', direction: 'n' }, world)
+    expect(result.appended.at(-1)?.text).toBe('The door is locked.')
+    expect(result.state.location).toBe('antechamber')
+  })
+
+  it('permits movement once the key is in inventory', () => {
+    const world = makeWorld()
+    let state = initialStateFor(world)
+    state = { ...state, inventory: [{ id: 'rusted-key', state: {} }] }
+    const result = dispatch(state, { kind: 'go', direction: 'n' }, world)
+    expect(result.state.location).toBe('vault')
+  })
+
+  it('does not consume the key on passage', () => {
+    const world = makeWorld()
+    let state = initialStateFor(world)
+    state = { ...state, inventory: [{ id: 'rusted-key', state: {} }] }
+    const result = dispatch(state, { kind: 'go', direction: 'n' }, world)
+    expect(result.state.inventory.find((i) => i.id === 'rusted-key')).toBeDefined()
   })
 })
 
