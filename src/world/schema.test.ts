@@ -79,3 +79,27 @@ describe('encounterFrontmatterSchema', () => {
     expect(() => encounterFrontmatterSchema.parse(data)).not.toThrow()
   })
 })
+
+describe('itemFrontmatterSchema — bible additions', () => {
+  it('accepts readable + lighter fields', () => {
+    const data = {
+      id: 'matches',
+      names: ['matches', 'matchbook'],
+      short: 'a matchbook',
+      takeable: true,
+      lighter: true,
+      lighterUses: 4,
+    }
+    expect(() => itemFrontmatterSchema.parse(data)).not.toThrow()
+  })
+
+  it('accepts lightable on its own', () => {
+    const data = { id: 'lamp', names: ['lamp'], short: 'a lamp', takeable: true, lightable: true }
+    expect(() => itemFrontmatterSchema.parse(data)).not.toThrow()
+  })
+
+  it('rejects negative lighterUses', () => {
+    const data = { id: 'matches', names: ['matches'], short: 'matches', takeable: true, lighter: true, lighterUses: -1 }
+    expect(() => itemFrontmatterSchema.parse(data)).toThrow()
+  })
+})

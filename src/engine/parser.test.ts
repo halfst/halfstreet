@@ -158,7 +158,7 @@ describe('parser — verb + target', () => {
 })
 
 describe('parser — disambiguation', () => {
-  it('returns disambiguation request when two candidates match', () => {
+  it('returns ambiguous when two candidates match', () => {
     const ctx: ParserContext = {
       knownItems: ['brass-key', 'iron-key'],
       knownEncounters: [],
@@ -171,12 +171,11 @@ describe('parser — disambiguation', () => {
       awaitingDisambiguation: null,
     }
     const result = parse('take key', ctx)
-    expect(result.kind).toBe('unknown')
-    if (result.kind === 'unknown') {
-      // Parser flags ambiguity by returning unknown-noun; the dispatcher
-      // turns this into a PendingDisambiguation. (Keeping parser pure: it
-      // signals; the dispatcher decides UI flow.)
-      expect(result.reason).toBe('unknown-noun')
+    expect(result.kind).toBe('ambiguous')
+    if (result.kind === 'ambiguous') {
+      expect(result.verb).toBe('take')
+      expect(result.rawNoun).toBe('key')
+      expect(result.candidates).toEqual(['brass-key', 'iron-key'])
     }
   })
 
@@ -229,5 +228,129 @@ describe('parser — pronouns', () => {
     }
     const result = parse('examine it', ctx)
     expect(result.kind).toBe('unknown')
+  })
+})
+
+describe('stop-word stripping', () => {
+  const ctx: ParserContext = {
+    knownItems: ['lamp'],
+    knownEncounters: [],
+    visibleNouns: [{ id: 'lamp', aliases: ['lamp', 'oil lamp'] }],
+    inventoryItemIds: [],
+    lastNoun: null,
+    awaitingDisambiguation: null,
+  }
+
+  it('strips a leading "at" from the noun phrase', () => {
+    const cmd = parse('look at lamp', ctx)
+    expect(cmd).toEqual({
+      kind: 'verb-target',
+      verb: 'look',
+      target: { canonical: 'lamp', raw: 'lamp' },
+    })
+  })
+
+  it('strips a leading "the"', () => {
+    const cmd = parse('examine the lamp', ctx)
+    expect(cmd.kind).toBe('verb-target')
+  })
+
+  it('strips "a" and "an"', () => {
+    expect(parse('take a lamp', ctx).kind).toBe('verb-target')
+    expect(parse('take an oil lamp', ctx).kind).toBe('verb-target')
+  })
+
+  it('does not strip stop-words mid-phrase', () => {
+    // 'oil lamp' is the alias; 'oil at lamp' is not. Stop-words only strip from
+    // the head of the noun phrase, not anywhere in the middle.
+    const cmd = parse('take oil lamp', ctx)
+    expect(cmd.kind).toBe('verb-target')
+  })
+})
+
+describe('ambiguous noun', () => {
+  const ctx: ParserContext = {
+    knownItems: ['iron-key', 'brass-key'],
+    knownEncounters: [],
+    visibleNouns: [
+      { id: 'iron-key', aliases: ['key', 'iron key'] },
+      { id: 'brass-key', aliases: ['key', 'brass key'] },
+    ],
+    inventoryItemIds: [],
+    lastNoun: null,
+    awaitingDisambiguation: null,
+  }
+
+  it('returns ambiguous when two aliases match the same noun phrase', () => {
+    const cmd = parse('take key', ctx)
+    expect(cmd).toEqual({
+      kind: 'ambiguous',
+      verb: 'take',
+      rawNoun: 'key',
+      candidates: ['iron-key', 'brass-key'],
+    })
+  })
+
+  it('still returns verb-target when the phrase is unambiguous', () => {
+    const cmd = parse('take iron key', ctx)
+    expect(cmd.kind).toBe('verb-target')
+    if (cmd.kind === 'verb-target') expect(cmd.target.canonical).toBe('iron-key')
+  })
+})
+
+describe('verb-target-prep with "with"', () => {
+  const ctx: ParserContext = {
+    knownItems: ['lamp', 'matches'],
+    knownEncounters: [],
+    visibleNouns: [
+      { id: 'lamp', aliases: ['lamp'] },
+      { id: 'matches', aliases: ['matches', 'matchbook'] },
+    ],
+    inventoryItemIds: ['matches'],
+    lastNoun: null,
+    awaitingDisambiguation: null,
+  }
+
+  it('parses "light lamp with matches" into verb-target-prep', () => {
+    const cmd = parse('light lamp with matches', ctx)
+    expect(cmd).toEqual({
+      kind: 'verb-target-prep',
+      verb: 'light',
+      target: { canonical: 'lamp', raw: 'lamp' },
+      preposition: 'with',
+      indirect: { canonical: 'matches', raw: 'matches' },
+    })
+  })
+
+  it('parses "use shears on vines" into verb-target-prep', () => {
+    const localCtx: ParserContext = {
+      knownItems: ['shears', 'ivy-figure'],
+      knownEncounters: [],
+      visibleNouns: [
+        { id: 'shears', aliases: ['shears'] },
+        { id: 'ivy-figure', aliases: ['vines', 'ivy'] },
+      ],
+      inventoryItemIds: ['shears'],
+      lastNoun: null,
+      awaitingDisambiguation: null,
+    }
+    const cmd = parse('use shears on vines', localCtx)
+    expect(cmd).toEqual({
+      kind: 'verb-target-prep',
+      verb: 'use',
+      target: { canonical: 'shears', raw: 'shears' },
+      preposition: 'on',
+      indirect: { canonical: 'ivy-figure', raw: 'vines' },
+    })
+  })
+
+  it('still parses verb-target when no preposition is present', () => {
+    const cmd = parse('take lamp', ctx)
+    expect(cmd.kind).toBe('verb-target')
+  })
+
+  it('falls back to unknown-noun when one side fails to resolve', () => {
+    const cmd = parse('light lamp with feathers', ctx)
+    expect(cmd).toEqual({ kind: 'unknown', raw: 'light lamp with feathers', reason: 'unknown-noun' })
   })
 })

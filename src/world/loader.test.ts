@@ -311,6 +311,118 @@ describe('narration registry', () => {
   })
 })
 
+describe('parseItem — body sections', () => {
+  it('extracts ## read into readableText', () => {
+    const md = `---
+id: letter
+names: [letter, note]
+short: a folded letter
+takeable: true
+readable: true
+---
+
+A folded letter, sealed with wax.
+
+## read
+You loved Halfstreet, the letter says. I loved it too.
+`
+    const item = parseItem(md, 'items/letter.md')
+    expect(item.long).toBe('A folded letter, sealed with wax.')
+    expect(item.readable).toBe(true)
+    expect(item.readableText).toBe('You loved Halfstreet, the letter says. I loved it too.')
+  })
+
+  it('extracts ## lit and ## extinguished', () => {
+    const md = `---
+id: lamp
+names: [lamp]
+short: an oil lamp
+takeable: true
+lightable: true
+initialState:
+  lit: false
+---
+
+An iron oil lamp.
+
+## lit
+The wick catches; warm yellow light fills the space.
+
+## extinguished
+You smother the flame. The room darkens.
+`
+    const item = parseItem(md, 'items/lamp.md')
+    expect(item.long).toBe('An iron oil lamp.')
+    expect(item.litText).toBe('The wick catches; warm yellow light fills the space.')
+    expect(item.extinguishedText).toBe('You smother the flame. The room darkens.')
+  })
+
+  it('extracts ## lighter-empty', () => {
+    const md = `---
+id: matches
+names: [matches]
+short: a matchbook
+takeable: true
+lighter: true
+lighterUses: 4
+---
+
+A matchbook from the Halfstreet Hotel.
+
+## lighter-empty
+The last match flares and dies. The book is empty.
+`
+    const item = parseItem(md, 'items/matches.md')
+    expect(item.lighterEmptyText).toBe('The last match flares and dies. The book is empty.')
+  })
+
+  it('throws when readable: true but ## read is missing', () => {
+    const md = `---
+id: x
+names: [x]
+short: x
+takeable: true
+readable: true
+---
+
+A thing.
+`
+    expect(() => parseItem(md, 'items/x.md')).toThrow(/## read.*required when readable/i)
+  })
+
+  it('still parses items with no body sections (back-compat)', () => {
+    const md = `---
+id: lamp
+names: [lamp]
+short: an oil lamp
+takeable: true
+---
+
+An iron oil lamp with a glass chimney.
+`
+    const item = parseItem(md, 'items/lamp.md')
+    expect(item.long).toBe('An iron oil lamp with a glass chimney.')
+    expect(item.readable).toBeUndefined()
+    expect(item.readableText).toBeUndefined()
+  })
+
+  it('throws for unknown section keys', () => {
+    const md = `---
+id: x
+names: [x]
+short: x
+takeable: true
+---
+
+A thing.
+
+## badkey
+Content.
+`
+    expect(() => parseItem(md, 'items/x.md')).toThrow(/unknown item section "## badkey".*Allowed:.*read.*lit.*extinguished.*lighter-empty/i)
+  })
+})
+
 describe('parseRoom invalid headers', () => {
   it('throws a clear error when a header has spaces', () => {
     const md = `---

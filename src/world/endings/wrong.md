@@ -1,5 +1,6 @@
 ---
 id: wrong
-whenFlags: {}
+whenFlags:
+  _never: true
 ---
 

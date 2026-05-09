@@ -24,24 +24,24 @@ export type ParsedCommand =
   | { kind: 'verb-only'; verb: Verb | 'look' | 'inventory' | 'wait' }
   | { kind: 'verb-target'; verb: Verb; target: NounRef }
   | { kind: 'verb-target-prep'; verb: Verb; target: NounRef; preposition: string; indirect: NounRef }
+  | { kind: 'ambiguous'; verb: Verb; rawNoun: string; candidates: string[] }
   | { kind: 'go'; direction: Direction }
   | { kind: 'meta'; verb: MetaVerb }
   | { kind: 'disambiguation'; chosen: string }
   | { kind: 'unknown'; raw: string; reason: 'unknown-verb' | 'unknown-noun' | 'malformed' }
 
 export type ResolveLevel = 'steady' | 'shaken' | 'reeling' | 'returning'
-export type Theme = 'amber' | 'ansi'
 
 export interface ItemInstance {
   id: ItemId
   /** Per-instance state: lit/unlit, broken/whole, etc. */
-  state: Record<string, string | boolean | number>
+  state: Record<string, string | boolean | number | string[]>
 }
 
 export type EncounterPhase = string  // phase names are encounter-specific
 
 export interface TranscriptLine {
-  kind: 'narration' | 'player' | 'system'
+  kind: 'narration' | 'player' | 'system' | 'ending'
   text: string
 }
 
@@ -56,9 +56,9 @@ export interface GameState {
   location: RoomId
   inventory: ItemInstance[]
   /** Per-room state: visited, items dropped, descriptive flags. */
-  roomState: Record<RoomId, Record<string, string | boolean | number>>
+  roomState: Record<RoomId, Record<string, string | boolean | number | string[]>>
   /** Story-wide flags (e.g. 'gateOpened', 'mirrorTarnished'). */
-  flags: Record<string, string | boolean | number>
+  flags: Record<string, string | boolean | number | string[]>
   resolveLevel: ResolveLevel
   /** Active encounter phase by encounter id, or null if no encounter is mid-flight. */
   encounterState: Record<EncounterId, EncounterPhase>
@@ -68,7 +68,6 @@ export interface GameState {
   pendingDisambiguation: PendingDisambiguation | null
   /** Capped at 200 entries; older entries are dropped on append. */
   transcript: TranscriptLine[]
-  theme: Theme
   /** Set true when the player has reached an ending. UI shows ending screen. */
   endedWith: 'true' | 'wrong' | 'bad' | null
 }

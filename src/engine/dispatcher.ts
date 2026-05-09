@@ -29,7 +29,6 @@ export function initialStateFor(world: World): GameState {
     lastNoun: null,
     pendingDisambiguation: null,
     transcript: opening,
-    theme: 'amber',
     endedWith: null,
   }
 }
@@ -41,8 +40,8 @@ function append(state: GameState, lines: TranscriptLine[]): GameState {
 
 export function getItemsInRoom(state: GameState, world: World, roomId: string): string[] {
   const baseItems = world.rooms[roomId]?.items ?? []
-  const dropped = (state.roomState[roomId]?.['droppedItems'] as string[] | undefined) ?? []
-  const taken = (state.roomState[roomId]?.['takenItems'] as string[] | undefined) ?? []
+  const dropped = (state.roomState[roomId]?.['droppedItems'] ?? []) as string[]
+  const taken = (state.roomState[roomId]?.['takenItems'] ?? []) as string[]
   return [...baseItems.filter((i) => !taken.includes(i)), ...dropped]
 }
 
@@ -51,9 +50,37 @@ function setRoomFlag(state: GameState, roomId: string, key: string, value: strin
     ...state,
     roomState: {
       ...state.roomState,
-      [roomId]: { ...(state.roomState[roomId] ?? {}), [key]: value as string | boolean | number },
+      [roomId]: { ...(state.roomState[roomId] ?? {}), [key]: value },
     },
   }
+}
+
+const ENDING_PRIORITY: ('true' | 'wrong' | 'bad')[] = ['true', 'wrong', 'bad']
+
+function evaluateEndings(state: GameState, world: World): GameState | null {
+  if (state.endedWith) return null
+  for (const id of ENDING_PRIORITY) {
+    const ending = world.endings[id]
+    const flags = ending.whenFlags
+    let allMatch = true
+    for (const [k, v] of Object.entries(flags)) {
+      if (state.flags[k] !== v) { allMatch = false; break }
+    }
+    if (!allMatch) continue
+    return {
+      ...state,
+      endedWith: id,
+      transcript: [...state.transcript, { kind: 'ending', text: ending.narration }],
+    }
+  }
+  return null
+}
+
+function withEndingCheck(result: DispatchResult, world: World): DispatchResult {
+  const updated = evaluateEndings(result.state, world)
+  if (!updated) return result
+  const endingLine: TranscriptLine = updated.transcript[updated.transcript.length - 1]!
+  return { state: updated, appended: [...result.appended, endingLine] }
 }
 
 export function dispatch(state: GameState, command: ParsedCommand, world: World): DispatchResult {
@@ -71,6 +98,11 @@ export function dispatch(state: GameState, command: ParsedCommand, world: World)
     )
   }
 
+  // Once the game has ended, only restart/undo (handled by the UI) can clear state.
+  if (state.endedWith) {
+    return narrate(state, [{ kind: 'narration', text: 'The story has ended. Type `restart` or `undo`.' }])
+  }
+
   if (command.kind === 'unknown') {
     const text =
       command.reason === 'unknown-verb' ? 'You consider the words, but they don\'t fit this place.'
@@ -84,13 +116,27 @@ export function dispatch(state: GameState, command: ParsedCommand, world: World)
   }
 
   if (command.kind === 'go') {
-    return handleGo(state, command.direction, world)
+    return withEndingCheck(handleGo(state, command.direction, world), world)
+  }
+
+  if (command.kind === 'ambiguous') {
+    const candidateShorts = command.candidates.map((id) => world.items[id]?.short ?? id)
+    const list =
+      candidateShorts.length === 2
+        ? `${candidateShorts[0]}, or ${candidateShorts[1]}`
+        : candidateShorts.slice(0, -1).join(', ') + ', or ' + candidateShorts[candidateShorts.length - 1]
+    const prompt = `Which ${command.rawNoun} — ${list}?`
+    const next: GameState = {
+      ...state,
+      pendingDisambiguation: { verb: command.verb, candidates: command.candidates, prompt },
+    }
+    return narrate(next, [{ kind: 'narration', text: prompt }])
   }
 
   if (command.kind === 'verb-only') {
-    if (command.verb === 'look') return handleLook(state, world)
-    if (command.verb === 'inventory') return handleInventory(state, world)
-    if (command.verb === 'wait') return narrate(state, [{ kind: 'narration', text: 'Time passes.' }])
+    if (command.verb === 'look') return withEndingCheck(handleLook(state, world), world)
+    if (command.verb === 'inventory') return withEndingCheck(handleInventory(state, world), world)
+    if (command.verb === 'wait') return withEndingCheck(narrate(state, [{ kind: 'narration', text: 'Time passes.' }]), world)
   }
 
   if (command.kind === 'verb-target') {
@@ -98,12 +144,32 @@ export function dispatch(state: GameState, command: ParsedCommand, world: World)
     // Try the active encounter first — it may consume verbs like 'attack', 'hold'.
     const encResult = applyVerbToEncounter(stateWithNoun, command, world)
     if (encResult?.consumed) {
-      return { state: encResult.state, appended: encResult.lines }
+      return withEndingCheck({ state: encResult.state, appended: encResult.lines }, world)
     }
-    if (command.verb === 'take') return handleTake(stateWithNoun, command.target.canonical, world)
-    if (command.verb === 'drop') return handleDrop(stateWithNoun, command.target.canonical, world)
-    if (command.verb === 'examine' || command.verb === 'look') return handleExamine(stateWithNoun, command.target.canonical, world)
-    return narrate(stateWithNoun, [{ kind: 'narration', text: `You're not sure how to ${command.verb} that.` }])
+    if (command.verb === 'take') return withEndingCheck(handleTake(stateWithNoun, command.target.canonical, world), world)
+    if (command.verb === 'drop') return withEndingCheck(handleDrop(stateWithNoun, command.target.canonical, world), world)
+    if (command.verb === 'examine' || command.verb === 'look') return withEndingCheck(handleExamine(stateWithNoun, command.target.canonical, world), world)
+    if (command.verb === 'read') return withEndingCheck(handleRead(stateWithNoun, command.target.canonical, world), world)
+    if (command.verb === 'light') return withEndingCheck(handleLight(stateWithNoun, command.target.canonical, null, world), world)
+    if (command.verb === 'extinguish') return withEndingCheck(handleExtinguish(stateWithNoun, command.target.canonical, world), world)
+    if (command.verb === 'use') return withEndingCheck(narrate(stateWithNoun, [{ kind: 'narration', text: "You can't think how to use that here." }]), world)
+    return withEndingCheck(narrate(stateWithNoun, [{ kind: 'narration', text: `You're not sure how to ${command.verb} that.` }]), world)
+  }
+
+  if (command.kind === 'verb-target-prep') {
+    const stateWithNoun: GameState = { ...state, lastNoun: command.target }
+    // Try the encounter first — it may consume verbs like 'cut vines with shears'.
+    const encResult = applyVerbToEncounter(stateWithNoun, command, world)
+    if (encResult?.consumed) {
+      return withEndingCheck({ state: encResult.state, appended: encResult.lines }, world)
+    }
+    if (command.verb === 'light' && command.preposition === 'with') {
+      return withEndingCheck(handleLight(stateWithNoun, command.target.canonical, command.indirect.canonical, world), world)
+    }
+    if (command.verb === 'use') {
+      return withEndingCheck(narrate(stateWithNoun, [{ kind: 'narration', text: "You can't think how to use that here." }]), world)
+    }
+    return withEndingCheck(narrate(stateWithNoun, [{ kind: 'narration', text: `You're not sure how to ${command.verb} that.` }]), world)
   }
 
   return narrate(state, [{ kind: 'narration', text: 'Nothing happens.' }])
@@ -115,10 +181,10 @@ function narrate(state: GameState, lines: TranscriptLine[]): DispatchResult {
 
 function handleMeta(state: GameState, verb: 'restart' | 'undo' | 'hint' | 'save' | 'quit' | 'theme'): DispatchResult {
   if (verb === 'save') return narrate(state, [{ kind: 'system', text: '(your progress is saved automatically)' }])
-  if (verb === 'theme') {
-    const newTheme = state.theme === 'amber' ? 'ansi' : 'amber'
-    return narrate({ ...state, theme: newTheme }, [{ kind: 'system', text: `Theme: ${newTheme}.` }])
-  }
+  // 'theme' is a UI preference: the terminal intercepts it before dispatch and
+  // dispatches a 'halfstreet-toggle-theme' DOM event. The engine no-ops here so
+  // typing the verb still produces transcript output if the UI ever misses it.
+  if (verb === 'theme') return narrate(state, [{ kind: 'system', text: '(theme)' }])
   // restart / undo / hint / quit are handled by the UI layer (state mutations
   // require coordination with the save layer and route navigation). The
   // engine acknowledges them with a no-op narration; the UI intercepts before
@@ -218,10 +284,10 @@ function handleTake(state: GameState, itemId: string, world: World): DispatchRes
     inventory: [...state.inventory, { id: itemId, state: { ...item.initialState } }],
   }
   if (wasInRoomBase) {
-    const taken = (next.roomState[state.location]?.['takenItems'] as string[] | undefined) ?? []
+    const taken = (next.roomState[state.location]?.['takenItems'] ?? []) as string[]
     next = setRoomFlag(next, state.location, 'takenItems', [...taken, itemId])
   } else {
-    const dropped = (next.roomState[state.location]?.['droppedItems'] as string[] | undefined) ?? []
+    const dropped = (next.roomState[state.location]?.['droppedItems'] ?? []) as string[]
     next = setRoomFlag(next, state.location, 'droppedItems', dropped.filter((id) => id !== itemId))
   }
   return narrate(next, [{ kind: 'narration', text: 'Taken.' }])
@@ -235,7 +301,7 @@ function handleDrop(state: GameState, itemId: string, world: World): DispatchRes
     ...state,
     inventory: state.inventory.filter((i) => i.id !== itemId),
   }
-  const dropped = (next.roomState[state.location]?.['droppedItems'] as string[] | undefined) ?? []
+  const dropped = (next.roomState[state.location]?.['droppedItems'] ?? []) as string[]
   next = setRoomFlag(next, state.location, 'droppedItems', [...dropped, itemId])
   return narrate(next, [{ kind: 'narration', text: 'Dropped.' }])
 }
@@ -248,4 +314,90 @@ function handleExamine(state: GameState, itemId: string, world: World): Dispatch
     getItemsInRoom(state, world, state.location).includes(itemId)
   if (!visible) return narrate(state, [{ kind: 'narration', text: 'You don\'t see anything like that.' }])
   return narrate(state, [{ kind: 'narration', text: item.long }])
+}
+
+function handleRead(state: GameState, itemId: string, world: World): DispatchResult {
+  const item = world.items[itemId]
+  if (!item) return narrate(state, [{ kind: 'narration', text: "You don't see anything like that." }])
+  const visible =
+    state.inventory.find((i) => i.id === itemId) ||
+    getItemsInRoom(state, world, state.location).includes(itemId)
+  if (!visible) return narrate(state, [{ kind: 'narration', text: "You don't see anything like that." }])
+  if (!item.readable || !item.readableText) {
+    return narrate(state, [{ kind: 'narration', text: "There's nothing to read on it." }])
+  }
+  return narrate(state, [{ kind: 'narration', text: item.readableText }])
+}
+
+function handleLight(state: GameState, targetId: string, instrumentId: string | null, world: World): DispatchResult {
+  const target = world.items[targetId]
+  if (!target) return narrate(state, [{ kind: 'narration', text: "You don't see anything like that." }])
+  if (!target.lightable) return narrate(state, [{ kind: 'narration', text: "You can't light that." }])
+  const targetInst = state.inventory.find((i) => i.id === targetId) ?? null
+  const visibleInRoom = getItemsInRoom(state, world, state.location).includes(targetId)
+  if (!targetInst && !visibleInRoom) {
+    return narrate(state, [{ kind: 'narration', text: "You don't see anything like that." }])
+  }
+  // The 'lit' state lives on the inventory instance for inventory items, or
+  // (eventually) on roomState for items left in a room. For now we only
+  // support lighting items the player is carrying.
+  if (!targetInst) {
+    return narrate(state, [{ kind: 'narration', text: "You'd have to be carrying it." }])
+  }
+  if (targetInst.state['lit'] === true) {
+    return narrate(state, [{ kind: 'narration', text: "It's already lit." }])
+  }
+
+  // Pick an instrument. If explicit, validate it; if implicit, find any.
+  let lighterInst = null as typeof state.inventory[number] | null
+  if (instrumentId) {
+    lighterInst = state.inventory.find((i) => i.id === instrumentId) ?? null
+    if (!lighterInst) return narrate(state, [{ kind: 'narration', text: "You don't have that." }])
+    const lighterDef = world.items[instrumentId]
+    if (!lighterDef?.lighter) return narrate(state, [{ kind: 'narration', text: "That isn't going to help." }])
+    if (typeof lighterInst.state['uses'] === 'number' && lighterInst.state['uses'] <= 0) {
+      return narrate(state, [{ kind: 'narration', text: "It is spent." }])
+    }
+  } else {
+    for (const inst of state.inventory) {
+      const def = world.items[inst.id]
+      if (!def?.lighter) continue
+      if (typeof inst.state['uses'] === 'number' && inst.state['uses'] <= 0) continue
+      lighterInst = inst
+      break
+    }
+    if (!lighterInst) {
+      return narrate(state, [{ kind: 'narration', text: 'You have nothing to light it with.' }])
+    }
+  }
+
+  // Apply state changes immutably.
+  const lighterDef = world.items[lighterInst.id]!
+  const lighterUsesField = typeof lighterInst.state['uses'] === 'number' ? lighterInst.state['uses'] : null
+  const newLighterUses = lighterUsesField === null ? null : lighterUsesField - 1
+  const newInventory = state.inventory.map((i) => {
+    if (i.id === targetInst.id) return { ...i, state: { ...i.state, lit: true } }
+    if (i.id === lighterInst!.id && newLighterUses !== null) return { ...i, state: { ...i.state, uses: newLighterUses } }
+    return i
+  })
+  const lines: TranscriptLine[] = [{ kind: 'narration', text: target.litText ?? 'It catches.' }]
+  if (newLighterUses === 0) {
+    lines.push({ kind: 'narration', text: lighterDef.lighterEmptyText ?? 'It is spent.' })
+  }
+  return narrate({ ...state, inventory: newInventory }, lines)
+}
+
+function handleExtinguish(state: GameState, targetId: string, world: World): DispatchResult {
+  const target = world.items[targetId]
+  if (!target) return narrate(state, [{ kind: 'narration', text: "You don't see anything like that." }])
+  if (!target.lightable) return narrate(state, [{ kind: 'narration', text: "You can't extinguish that." }])
+  const targetInst = state.inventory.find((i) => i.id === targetId)
+  if (!targetInst) return narrate(state, [{ kind: 'narration', text: "You'd have to be carrying it." }])
+  if (targetInst.state['lit'] !== true) {
+    return narrate(state, [{ kind: 'narration', text: "It isn't lit." }])
+  }
+  const newInventory = state.inventory.map((i) =>
+    i.id === targetId ? { ...i, state: { ...i.state, lit: false } } : i,
+  )
+  return narrate({ ...state, inventory: newInventory }, [{ kind: 'narration', text: target.extinguishedText ?? 'The flame dies.' }])
 }
