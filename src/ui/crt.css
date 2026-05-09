@@ -179,7 +179,6 @@
   white-space: pre-wrap;
 }
 
-[data-mystery-input]:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
+[data-mystery-input].ended {
+  opacity: 0.55;
 }

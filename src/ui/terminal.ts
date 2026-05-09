@@ -34,7 +34,11 @@ if (!transcriptEl || !inputEl) {
   }
 
   const syncEndedUI = (): void => {
-    inputEl!.disabled = state.endedWith !== null
+    // Don't disable the input — the player still needs to type `restart` or
+    // `undo`. A `disabled` input rejects keydown events entirely. Use a class
+    // for visual styling instead; the keydown handler enforces the input
+    // restriction.
+    inputEl!.classList.toggle('ended', state.endedWith !== null)
   }
 
   const buildParserContext = (s: GameState): ParserContext => {
