@@ -5,6 +5,8 @@
 
 This spec is a format migration. No prose is rewritten. Tonal refinement is a separate spec that comes after.
 
+**Deliverable:** a working three-room prototype. The current game only contains three rooms (`foyer`, `hallway`, `cellar-stair`), one encounter (`rat`), three items, and a small set of endings. Migrating that content end-to-end produces a fully functional game running on the markdown pipeline, identical in behavior to today. Authoring the additional twenty-plus rooms described in the bible is the tonal-refinement spec that follows.
+
 ---
 
 ## Why
@@ -55,7 +57,7 @@ The Obsidian vault opens on `src/mystery/world/`. The bible at `docs/superpowers
 Any frontmatter field that points to another markdown file uses a quoted Obsidian wikilink.
 
 ```yaml
-exit_n: "[[hallway]]"
+exitN: "[[hallway]]"
 items:
   - "[[letter]]"
 encounter: "[[rat]]"
@@ -70,23 +72,23 @@ Plain strings — flag names, phase names, narration keys — stay plain. They d
 Every room declares all six directions, with `null` for absent exits:
 
 ```yaml
-exit_n: "[[hallway]]"
-exit_s: null
-exit_e: null
-exit_w: null
-exit_u: null
-exit_d: null
+exitN: "[[hallway]]"
+exitS: null
+exitE: null
+exitW: null
+exitU: null
+exitD: null
 ```
 
-Locked exits extend the flat pattern. The unlocked-exit form is `exit_<dir>: "[[room]]"`. A locked exit adds two sibling fields, present only when the exit is locked:
+Locked exits extend the flat pattern. The unlocked-exit form is `exit<Dir>: "[[room]]"`. A locked exit adds two sibling fields, present only when the exit is locked:
 
 ```yaml
-exit_d: "[[vault]]"
-exit_d_requires: "[[rusted-key]]"
-exit_d_locked_text: The door is locked.
+exitD: "[[vault]]"
+exitDRequires: "[[rusted-key]]"
+exitDLockedText: The door is locked.
 ```
 
-`exit_<dir>_requires` may also reference a flag name (plain string, no wikilink) instead of an item.
+`exit<Dir>Requires` may also reference a flag name (plain string, no wikilink) instead of an item.
 
 ---
 
@@ -102,12 +104,12 @@ Three required sections per room: `first-visit`, `revisit`, `examined`.
 ---
 id: foyer
 title: "[ Foyer ]"
-exit_n: "[[hallway]]"
-exit_s: null
-exit_e: null
-exit_w: null
-exit_u: null
-exit_d: null
+exitN: "[[hallway]]"
+exitS: null
+exitE: null
+exitW: null
+exitU: null
+exitD: null
 items:
   - "[[letter]]"
 encounter: null
@@ -134,14 +136,14 @@ id: lamp
 names: [lamp, oil lamp]
 short: An iron oil lamp.
 takeable: true
-initial_state:
+initialState:
   lit: false
 ---
 
 An iron oil lamp, heavy enough to swing if it came to it. The wick is dry. The reservoir sloshes faintly.
 ```
 
-**Frontmatter naming convention:** all keys are `snake_case`. The loader maps to `camelCase` TS field names (`initial_state` → `initialState`, `starts_in` → `startsIn`, `when_flags` → `whenFlags`). Consumers in engine code see the existing camelCase shape unchanged.
+**Frontmatter naming convention:** all keys are `camelCase`, matching the existing TypeScript shape. The loader passes parsed values through unchanged. Engine code sees the same field names as before the migration.
 
 ### Endings
 
@@ -150,7 +152,7 @@ One file per ending. Conditions in frontmatter, single prose body.
 ```md
 ---
 id: true
-when_flags:
+whenFlags:
   woofReturned: true
   basiliskSpared: true
   houseAcceptedYou: true
@@ -178,8 +180,8 @@ Encounter state machines stay in TypeScript at `src/mystery/world/encounters.ts`
 ```md
 ---
 id: basilisk
-starts_in: "[[chapel]]"
-initial_phase: sleeping
+startsIn: "[[chapel]]"
+initialPhase: sleeping
 ---
 
 ## sleeping
@@ -246,20 +248,20 @@ The index then assembles a single `World` value by validating each file and reso
 
 After all files are parsed, `buildWorld` runs cross-reference checks and throws on the first failure with a precise message:
 
-- Every `exit_<dir>` destination resolves to a known room id.
-- Every `exit_<dir>_requires` resolves to a known item id or a declared flag name.
+- Every `exit<Dir>` destination resolves to a known room id.
+- Every `exit<Dir>Requires` resolves to a known item id or a declared flag name.
 - Every room `items[]` entry resolves to a known item id.
 - Every room `encounter` resolves to a known encounter id.
-- Every encounter `starts_in` resolves to a known room id, and matches the encounter's `startsIn` in `encounters.ts`.
+- Every encounter `startsIn` (in frontmatter) resolves to a known room id, and matches the encounter's `startsIn` in `encounters.ts`.
 - Every `narration(id, key)` call in `encounters.ts` finds a matching `## key` section in `encounters/<id>.md`.
 - Every `## key` section in encounter markdown is referenced by at least one `narration()` call (catches orphaned prose).
 - Every required room section (`first-visit`, `revisit`, `examined`) is present.
-- Every ending `when_flags` entry uses a flag name declared in `story.ts`.
+- Every ending `whenFlags` entry uses a flag name declared in `story.ts`.
 
 Example failure messages:
 
 ```
-rooms/parlor.md: exit_n references "[[hallwayy]]" but no such room exists. Did you mean "hallway"?
+rooms/parlor.md: exitN references "[[hallwayy]]" but no such room exists. Did you mean "hallway"?
 encounters.ts: narration('basilisk', 'sleping') has no matching section in encounters/basilisk.md. Available: sleeping, resolved, failed-direct-look.
 rooms/foyer.md: missing required section "## first-visit".
 ```
@@ -315,7 +317,7 @@ A minimal `.obsidian/` directory is committed for shared graph and tag-pane sett
 - **Tonal refinement.** This migration preserves every existing string verbatim. Authoring richer prose into the new markdown files is a separate spec that follows immediately after.
 - **Bible reorganization.** The bible currently duplicates structural data (room summaries, item lists) that becomes redundant once the markdown files exist. Slimming the bible to voice, themes, and high-level structure is a follow-on task tied to the tonal refinement spec.
 - **Single-source-of-truth types.** `types.ts` and `schema.ts` remain hand-synced. Deriving one from the other is a possible later cleanup.
-- **Astro content collections.** The mystery game is client-side bundled; using `import.meta.glob` keeps the loader self-contained and avoids restructuring the page hydration path. Astro content collections may be a fit later if mystery content ever needs server-rendered routes.
+- **Astro content collections (`defineCollection` / `getCollection`).** A deliberate tooling choice, not a feature exclusion. The mystery is a client-bundled JS module; `import.meta.glob({ eager: true })` runs at bundle time and gives synchronous access to the world data in both production and tests. `getCollection` is server-side and async, which would force serializing the world to JSON inside `mystery.astro` and rehydrating on the client — extra plumbing for no editorial benefit. Markdown editing, HMR, Obsidian wikilinks, graph view, and Zod schema validation all work identically with `import.meta.glob`. Content collections become attractive only if mystery content ever needs server-rendered routes (e.g. a public room index page); not the case today.
 
 ---
 
