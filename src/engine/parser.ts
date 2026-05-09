@@ -59,6 +59,9 @@ const VERB_ONLY_VERBS = new Set<string>(['look', 'inventory', 'wait'])
 /** Two-word verb prefixes (e.g. "pick up X"). */
 const TWO_WORD_VERBS = ['pick up']
 
+/** Leading stop-words stripped from the noun phrase before matching. */
+const STOP_WORDS = new Set(['at', 'the', 'a', 'an'])
+
 function tokenize(input: string): string[] {
   return input.trim().toLowerCase().split(/\s+/).filter(Boolean)
 }
@@ -124,6 +127,11 @@ export function parse(rawInput: string, ctx: ParserContext): ParsedCommand {
 
   if (!verb) {
     return { kind: 'unknown', raw: trimmed, reason: 'unknown-verb' }
+  }
+
+  // Strip leading stop-words from the noun phrase (e.g. "at", "the", "a", "an").
+  while (rest.length > 0 && STOP_WORDS.has(rest[0]!)) {
+    rest = rest.slice(1)
   }
 
   if (rest.length === 0) {

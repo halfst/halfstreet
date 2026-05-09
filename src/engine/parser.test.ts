@@ -231,3 +231,40 @@ describe('parser — pronouns', () => {
     expect(result.kind).toBe('unknown')
   })
 })
+
+describe('stop-word stripping', () => {
+  const ctx: ParserContext = {
+    knownItems: ['lamp'],
+    knownEncounters: [],
+    visibleNouns: [{ id: 'lamp', aliases: ['lamp', 'oil lamp'] }],
+    inventoryItemIds: [],
+    lastNoun: null,
+    awaitingDisambiguation: null,
+  }
+
+  it('strips a leading "at" from the noun phrase', () => {
+    const cmd = parse('look at lamp', ctx)
+    expect(cmd).toEqual({
+      kind: 'verb-target',
+      verb: 'look',
+      target: { canonical: 'lamp', raw: 'lamp' },
+    })
+  })
+
+  it('strips a leading "the"', () => {
+    const cmd = parse('examine the lamp', ctx)
+    expect(cmd.kind).toBe('verb-target')
+  })
+
+  it('strips "a" and "an"', () => {
+    expect(parse('take a lamp', ctx).kind).toBe('verb-target')
+    expect(parse('take an oil lamp', ctx).kind).toBe('verb-target')
+  })
+
+  it('does not strip stop-words mid-phrase', () => {
+    // 'oil lamp' is the alias; 'oil at lamp' is not. Stop-words only strip from
+    // the head of the noun phrase, not anywhere in the middle.
+    const cmd = parse('take oil lamp', ctx)
+    expect(cmd.kind).toBe('verb-target')
+  })
+})
