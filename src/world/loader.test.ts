@@ -85,4 +85,79 @@ items: []
       d: { requires: 'rusted-key', lockedNarration: 'The door is locked.' },
     })
   })
+
+  it('strips aliased wikilinks like [[id|display text]] to just the id', () => {
+    const md = `---
+id: foyer
+title: "[ Foyer ]"
+exitN: "[[hallway|the long hallway]]"
+exitS: null
+exitE: null
+exitW: null
+exitU: null
+exitD: null
+items:
+  - "[[letter|the folded letter]]"
+encounter: null
+---
+
+## first-visit
+.
+## revisit
+.
+## examined
+.
+`
+    const room = parseRoom(md, 'rooms/foyer.md')
+    expect(room.exits).toEqual({ n: 'hallway' })
+    expect(room.items).toEqual(['letter'])
+  })
+
+  it('throws when locked text is set without requires', () => {
+    const md = `---
+id: r
+title: "[ R ]"
+exitN: null
+exitS: null
+exitE: null
+exitW: null
+exitU: null
+exitD: "[[vault]]"
+exitDLockedText: The door is locked.
+items: []
+---
+
+## first-visit
+.
+## revisit
+.
+## examined
+.
+`
+    expect(() => parseRoom(md, 'rooms/r.md')).toThrow(/exitDLockedText is set but exitDRequires is missing/)
+  })
+
+  it('throws when requires is set without locked text', () => {
+    const md = `---
+id: r
+title: "[ R ]"
+exitN: null
+exitS: null
+exitE: null
+exitW: null
+exitU: null
+exitD: "[[vault]]"
+exitDRequires: "[[rusted-key]]"
+items: []
+---
+
+## first-visit
+.
+## revisit
+.
+## examined
+.
+`
+    expect(() => parseRoom(md, 'rooms/r.md')).toThrow(/exitDRequires is set but exitDLockedText is missing/)
+  })
 })

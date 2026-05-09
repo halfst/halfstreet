@@ -3,7 +3,7 @@ import type { Room, RoomDescriptions } from './types'
 import type { Direction } from '../engine/types'
 import { roomFrontmatterSchema } from './schema'
 
-const WIKILINK = /^\[\[(.+)\]\]$/
+const WIKILINK = /^\[\[([^\]|]+)(?:\|[^\]]*)?\]\]$/
 
 function stripWikilink(value: unknown): unknown {
   if (typeof value === 'string') {
@@ -21,6 +21,7 @@ function stripWikilink(value: unknown): unknown {
 
 function splitSections(body: string): Record<string, string> {
   const sections: Record<string, string> = {}
+  // Section names use only [A-Za-z0-9_-]; headers with spaces or dots are silently skipped.
   const re = /^##\s+([\w-]+)\s*$/gm
   const matches = [...body.matchAll(re)]
   for (let i = 0; i < matches.length; i++) {
@@ -72,10 +73,13 @@ export function parseRoom(raw: string, sourcePath: string): Room {
       exits[dir] = dest
       const req = (fm as Record<string, unknown>)[keys.requires] as string | undefined
       const locked = (fm as Record<string, unknown>)[keys.locked] as string | undefined
-      if (req !== undefined) {
-        if (locked === undefined) {
-          throw new Error(`${sourcePath}: ${keys.requires} is set but ${keys.locked} is missing`)
-        }
+      if (req !== undefined && locked === undefined) {
+        throw new Error(`${sourcePath}: ${keys.requires} is set but ${keys.locked} is missing`)
+      }
+      if (locked !== undefined && req === undefined) {
+        throw new Error(`${sourcePath}: ${keys.locked} is set but ${keys.requires} is missing`)
+      }
+      if (req !== undefined && locked !== undefined) {
         lockedExits[dir] = { requires: req, lockedNarration: locked }
       }
     }
