@@ -33,6 +33,10 @@ if (!transcriptEl || !inputEl) {
     })
   }
 
+  const syncEndedUI = (): void => {
+    inputEl!.disabled = state.endedWith !== null
+  }
+
   const buildParserContext = (s: GameState): ParserContext => {
     const room = world.rooms[s.location]
     const visibleNouns: { id: string; aliases: string[] }[] = []
@@ -81,6 +85,7 @@ if (!transcriptEl || !inputEl) {
 
   renderAll(state.transcript)
   refreshChips()
+  syncEndedUI()
   inputEl.focus()
 
   inputEl.addEventListener('keydown', (e) => {
@@ -90,6 +95,15 @@ if (!transcriptEl || !inputEl) {
     inputEl.value = ''
     if (!raw.trim()) return
     appendLines([{ kind: 'player', text: raw }])
+
+    // Once the game has ended, only restart and undo are allowed.
+    if (state.endedWith !== null) {
+      const lower = raw.trim().toLowerCase()
+      if (lower !== 'restart' && lower !== 'undo') {
+        appendLines([{ kind: 'system', text: 'The story has ended. Type `restart` or `undo`.' }])
+        return
+      }
+    }
 
     // Engine-level meta-commands handled here so the engine stays pure.
     const trimmed = raw.trim().toLowerCase()
@@ -105,6 +119,7 @@ if (!transcriptEl || !inputEl) {
       renderAll(state.transcript)
       saveState(state)
       refreshChips()
+      syncEndedUI()
       return
     }
     if (trimmed === 'undo') {
@@ -114,6 +129,7 @@ if (!transcriptEl || !inputEl) {
         appendLines([{ kind: 'system', text: '(undone)' }])
         saveState(state)
         refreshChips()
+        syncEndedUI()
       } else {
         appendLines([{ kind: 'system', text: 'There is no further back.' }])
       }
@@ -139,6 +155,7 @@ if (!transcriptEl || !inputEl) {
         document.dispatchEvent(new CustomEvent('halfstreet-toggle-theme'))
       }
       refreshChips()
+      syncEndedUI()
     } catch (err) {
       console.error('[halfstreet] dispatch error', err)
       appendLines([{ kind: 'system', text: '[ The terminal hums and resets. ]' }])
