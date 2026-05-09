@@ -1,6 +1,6 @@
 import { parse } from '../engine/parser'
 import type { ParserContext } from '../engine/parser'
-import { dispatch, initialStateFor } from '../engine/dispatcher'
+import { dispatch, initialStateFor, getItemsInRoom } from '../engine/dispatcher'
 import { saveState, loadState, clearSave } from '../engine/save'
 import { world } from '../world'
 import type { GameState, TranscriptLine } from '../engine/types'
@@ -37,7 +37,7 @@ if (!transcriptEl || !inputEl) {
     const room = world.rooms[s.location]
     const visibleNouns: { id: string; aliases: string[] }[] = []
     if (room) {
-      for (const id of room.items) {
+      for (const id of getItemsInRoom(s, world, s.location)) {
         const it = world.items[id]
         if (it) visibleNouns.push({ id, aliases: it.names })
       }
