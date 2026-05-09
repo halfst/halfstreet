@@ -340,3 +340,78 @@ describe('light/extinguish verbs (implicit lighter)', () => {
     expect(result.appended.at(-1)?.text).toBe("It isn't lit.")
   })
 })
+
+describe('light X with Y (explicit lighter)', () => {
+  function w(): World {
+    return {
+      startingRoom: 'r',
+      startingInventory: [],
+      rooms: { r: { id: 'r', title: '[ R ]', descriptions: { firstVisit: '.', revisit: '.', examined: '.' }, exits: {}, items: [] } },
+      items: {
+        lamp: { id: 'lamp', names: ['lamp'], short: 'an oil lamp', long: '.', initialState: { lit: false }, takeable: true, lightable: true, litText: 'The wick catches.', extinguishedText: 'The flame dies.' },
+        matches: { id: 'matches', names: ['matches'], short: 'a matchbook', long: '.', initialState: {}, takeable: true, lighter: true, lighterUses: 2, lighterEmptyText: 'The book is empty.' },
+        rock: { id: 'rock', names: ['rock'], short: 'a rock', long: '.', initialState: {}, takeable: true },
+      },
+      encounters: {},
+      endings: { true: { whenFlags: {}, narration: '' }, wrong: { whenFlags: {}, narration: '' }, bad: { whenFlags: {}, narration: '' } },
+    }
+  }
+
+  it('lights with the explicit instrument', () => {
+    const world = w()
+    let state = initialStateFor(world)
+    state = { ...state, inventory: [
+      { id: 'lamp', state: { lit: false } },
+      { id: 'matches', state: { uses: 2 } },
+    ] }
+    const result = dispatch(state, {
+      kind: 'verb-target-prep', verb: 'light',
+      target: { canonical: 'lamp', raw: 'lamp' },
+      preposition: 'with',
+      indirect: { canonical: 'matches', raw: 'matches' },
+    }, world)
+    expect(result.state.inventory.find((i) => i.id === 'lamp')?.state['lit']).toBe(true)
+    expect(result.state.inventory.find((i) => i.id === 'matches')?.state['uses']).toBe(1)
+  })
+
+  it('refuses when the named instrument is not a lighter', () => {
+    const world = w()
+    let state = initialStateFor(world)
+    state = { ...state, inventory: [
+      { id: 'lamp', state: { lit: false } },
+      { id: 'rock', state: {} },
+    ] }
+    const result = dispatch(state, {
+      kind: 'verb-target-prep', verb: 'light',
+      target: { canonical: 'lamp', raw: 'lamp' },
+      preposition: 'with',
+      indirect: { canonical: 'rock', raw: 'rock' },
+    }, world)
+    expect(result.appended.at(-1)?.text).toBe("That isn't going to help.")
+  })
+})
+
+describe('use verb routing', () => {
+  function w(): World {
+    return {
+      startingRoom: 'r',
+      startingInventory: [],
+      rooms: { r: { id: 'r', title: '[ R ]', descriptions: { firstVisit: '.', revisit: '.', examined: '.' }, exits: {}, items: [] } },
+      items: {
+        rock: { id: 'rock', names: ['rock'], short: 'a rock', long: '.', initialState: {}, takeable: true },
+      },
+      encounters: {},
+      endings: { true: { whenFlags: {}, narration: '' }, wrong: { whenFlags: {}, narration: '' }, bad: { whenFlags: {}, narration: '' } },
+    }
+  }
+
+  it('falls back when no encounter consumes use', () => {
+    const world = w()
+    let state = initialStateFor(world)
+    state = { ...state, inventory: [{ id: 'rock', state: {} }] }
+    const result = dispatch(state, {
+      kind: 'verb-target', verb: 'use', target: { canonical: 'rock', raw: 'rock' },
+    }, world)
+    expect(result.appended.at(-1)?.text).toBe("You can't think how to use that here.")
+  })
+})

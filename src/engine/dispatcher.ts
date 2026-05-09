@@ -119,6 +119,23 @@ export function dispatch(state: GameState, command: ParsedCommand, world: World)
     if (command.verb === 'read') return handleRead(stateWithNoun, command.target.canonical, world)
     if (command.verb === 'light') return handleLight(stateWithNoun, command.target.canonical, null, world)
     if (command.verb === 'extinguish') return handleExtinguish(stateWithNoun, command.target.canonical, world)
+    if (command.verb === 'use') return narrate(stateWithNoun, [{ kind: 'narration', text: "You can't think how to use that here." }])
+    return narrate(stateWithNoun, [{ kind: 'narration', text: `You're not sure how to ${command.verb} that.` }])
+  }
+
+  if (command.kind === 'verb-target-prep') {
+    const stateWithNoun: GameState = { ...state, lastNoun: command.target }
+    // Try the encounter first — it may consume verbs like 'cut vines with shears'.
+    const encResult = applyVerbToEncounter(stateWithNoun, command, world)
+    if (encResult?.consumed) {
+      return { state: encResult.state, appended: encResult.lines }
+    }
+    if (command.verb === 'light' && command.preposition === 'with') {
+      return handleLight(stateWithNoun, command.target.canonical, command.indirect.canonical, world)
+    }
+    if (command.verb === 'use') {
+      return narrate(stateWithNoun, [{ kind: 'narration', text: "You can't think how to use that here." }])
+    }
     return narrate(stateWithNoun, [{ kind: 'narration', text: `You're not sure how to ${command.verb} that.` }])
   }
 

@@ -66,12 +66,17 @@ export function applyVerbToEncounter(
   const phaseDef = def.phases[currentPhase]
   if (!phaseDef) return null
 
-  // Only verb-target and verb-only commands engage with encounters.
+  // Only verb-target, verb-target-prep, and verb-only commands engage with encounters.
   let verb: string | null = null
   let targetId: string | null = null
+  let instrumentId: string | null = null
   if (command.kind === 'verb-target') {
     verb = command.verb
     targetId = command.target.canonical
+  } else if (command.kind === 'verb-target-prep') {
+    verb = command.verb
+    targetId = command.target.canonical
+    instrumentId = command.indirect.canonical
   } else if (command.kind === 'verb-only' && command.verb !== 'inventory') {
     verb = command.verb
   } else {
@@ -91,6 +96,7 @@ export function applyVerbToEncounter(
         }
       }
     }
+    if (t.requires && instrumentId && t.requires.item !== instrumentId) return false
     return true
   })
 
