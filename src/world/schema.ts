@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-const stateValueSchema = z.union([z.string(), z.boolean(), z.number()])
+const stateValueSchema = z.union([z.string(), z.boolean(), z.number(), z.array(z.string())])
 const stateRecordSchema = z.record(z.string(), stateValueSchema)
 
 export const roomFrontmatterSchema = z.object({
@@ -37,6 +37,10 @@ export const itemFrontmatterSchema = z.object({
   short: z.string().min(1),
   takeable: z.boolean(),
   initialState: stateRecordSchema.default({}),
+  readable: z.boolean().optional(),
+  lightable: z.boolean().optional(),
+  lighter: z.boolean().optional(),
+  lighterUses: z.number().int().nonnegative().optional(),
 })
 
 export type ItemFrontmatter = z.infer<typeof itemFrontmatterSchema>

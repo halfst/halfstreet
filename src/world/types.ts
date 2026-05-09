@@ -37,9 +37,25 @@ export interface Item {
   /** Long description shown when examined. */
   long: string
   /** Initial per-instance state (e.g. `{ lit: false }`). */
-  initialState: Record<string, string | boolean | number>
+  initialState: Record<string, string | boolean | number | string[]>
   /** True if the player can pick it up. */
   takeable: boolean
+  /** True if `read X` should narrate the item's `## read` section. */
+  readable?: boolean
+  /** True if `light X` / `extinguish X` apply; toggles state.lit. */
+  lightable?: boolean
+  /** True if this item can light other items. */
+  lighter?: boolean
+  /** Optional remaining-charges counter; absent means unlimited. */
+  lighterUses?: number
+  /** Prose returned by `read X`. Required iff readable is true. */
+  readableText?: string
+  /** Prose narrated when `light X` succeeds. Falls back to "It catches." */
+  litText?: string
+  /** Prose narrated when `extinguish X` succeeds. Falls back to "The flame dies." */
+  extinguishedText?: string
+  /** Prose narrated when this item's lighterUses reaches 0. Falls back to "It is spent." */
+  lighterEmptyText?: string
 }
 
 export interface EncounterPhaseDef {
@@ -83,8 +99,8 @@ export interface World {
   encounters: Record<EncounterId, EncounterDef>
   /** Story flag definitions and the endings they unlock. */
   endings: {
-    true: { whenFlags: Record<string, string | boolean | number>; narration: string }
-    wrong: { whenFlags: Record<string, string | boolean | number>; narration: string }
-    bad: { whenFlags: Record<string, string | boolean | number>; narration: string }
+    true: { whenFlags: Record<string, string | boolean | number | string[]>; narration: string }
+    wrong: { whenFlags: Record<string, string | boolean | number | string[]>; narration: string }
+    bad: { whenFlags: Record<string, string | boolean | number | string[]>; narration: string }
   }
 }

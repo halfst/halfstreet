@@ -150,7 +150,7 @@ export function parseItem(raw: string, sourcePath: string): Item {
 
 export interface ParsedEnding {
   id: 'true' | 'wrong' | 'bad'
-  ending: { whenFlags: Record<string, string | boolean | number>; narration: string }
+  ending: { whenFlags: Record<string, string | boolean | number | string[]>; narration: string }
 }
 
 export function parseEnding(raw: string, _sourcePath: string): ParsedEnding {
