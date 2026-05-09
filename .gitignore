@@ -1,0 +1,36 @@
+# build output
+dist/
+# generated types
+.astro/
+
+# dependencies
+node_modules/
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# environment variables
+.env
+.env.production
+
+# macOS-specific files
+.DS_Store
+
+# jetbrains setting folder
+.idea/
+
+# superpowers brainstorming session artifacts
+.superpowers/
+
+# Obsidian workspace cache (per-machine, not for source control)
+src/world/.obsidian/workspace.json
+src/world/.obsidian/workspace-mobile.json
+src/world/.obsidian/workspace.json.bak
+src/world/.obsidian/cache
+docs/superpowers/specs/.obsidian/workspace.json
+docs/superpowers/specs/.obsidian/workspace-mobile.json
+docs/superpowers/specs/.obsidian/workspace.json.bak
+docs/superpowers/specs/.obsidian/cache
