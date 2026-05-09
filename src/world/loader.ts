@@ -1,7 +1,7 @@
 import matter from 'gray-matter'
-import type { Room, RoomDescriptions } from './types'
+import type { Room, RoomDescriptions, Item } from './types'
 import type { Direction } from '../engine/types'
-import { roomFrontmatterSchema } from './schema'
+import { roomFrontmatterSchema, itemFrontmatterSchema } from './schema'
 
 const WIKILINK = /^\[\[([^\]|]+)(?:\|[^\]]*)?\]\]$/
 
@@ -96,4 +96,22 @@ export function parseRoom(raw: string, sourcePath: string): Room {
   if (fm.encounter) room.encounter = fm.encounter
   if (fm.safe) room.safe = fm.safe
   return room
+}
+
+export function parseItem(raw: string, sourcePath: string): Item {
+  const parsed = matter(raw)
+  const frontmatter = stripWikilink(parsed.data) as Record<string, unknown>
+  const fm = itemFrontmatterSchema.parse(frontmatter)
+  const long = parsed.content.trim()
+  if (long.length === 0) {
+    throw new Error(`${sourcePath}: empty long description`)
+  }
+  return {
+    id: fm.id,
+    names: fm.names,
+    short: fm.short,
+    long,
+    initialState: fm.initialState,
+    takeable: fm.takeable,
+  }
 }

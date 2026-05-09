@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseRoom } from './loader'
+import { parseRoom, parseItem } from './loader'
 
 const FOYER_MD = `---
 id: foyer
@@ -159,5 +159,58 @@ items: []
 .
 `
     expect(() => parseRoom(md, 'rooms/r.md')).toThrow(/exitDRequires is set but exitDLockedText is missing/)
+  })
+})
+
+// Add to the bottom of loader.test.ts
+
+const LAMP_MD = `---
+id: lamp
+names: [lamp, oil lamp, torch]
+short: an oil lamp
+takeable: true
+initialState:
+  lit: false
+---
+
+An iron oil lamp with a glass chimney. Currently unlit.
+`
+
+describe('parseItem', () => {
+  it('parses an item with state', () => {
+    const item = parseItem(LAMP_MD, 'items/lamp.md')
+    expect(item).toEqual({
+      id: 'lamp',
+      names: ['lamp', 'oil lamp', 'torch'],
+      short: 'an oil lamp',
+      long: 'An iron oil lamp with a glass chimney. Currently unlit.',
+      initialState: { lit: false },
+      takeable: true,
+    })
+  })
+
+  it('uses empty initialState when omitted', () => {
+    const md = `---
+id: x
+names: [x]
+short: x
+takeable: false
+---
+
+The long description.
+`
+    const item = parseItem(md, 'items/x.md')
+    expect(item.initialState).toEqual({})
+  })
+
+  it('throws when body is empty', () => {
+    const md = `---
+id: x
+names: [x]
+short: x
+takeable: false
+---
+`
+    expect(() => parseItem(md, 'items/x.md')).toThrow(/empty long description/i)
   })
 })
