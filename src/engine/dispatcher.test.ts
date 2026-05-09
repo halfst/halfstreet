@@ -252,3 +252,91 @@ describe('read verb', () => {
     expect(result.appended.at(-1)?.text).toBe("There's nothing to read on it.")
   })
 })
+
+describe('light/extinguish verbs (implicit lighter)', () => {
+  function w(): World {
+    return {
+      startingRoom: 'r',
+      startingInventory: [],
+      rooms: { r: { id: 'r', title: '[ R ]', descriptions: { firstVisit: '.', revisit: '.', examined: '.' }, exits: {}, items: [] } },
+      items: {
+        lamp: { id: 'lamp', names: ['lamp'], short: 'an oil lamp', long: '.', initialState: { lit: false }, takeable: true, lightable: true, litText: 'The wick catches.', extinguishedText: 'The flame dies.' },
+        matches: { id: 'matches', names: ['matches'], short: 'a matchbook', long: '.', initialState: {}, takeable: true, lighter: true, lighterUses: 2, lighterEmptyText: 'The book is empty.' },
+        rock: { id: 'rock', names: ['rock'], short: 'a rock', long: '.', initialState: {}, takeable: true },
+      },
+      encounters: {},
+      endings: { true: { whenFlags: {}, narration: '' }, wrong: { whenFlags: {}, narration: '' }, bad: { whenFlags: {}, narration: '' } },
+    }
+  }
+
+  it('lights a lamp using the matchbook implicitly', () => {
+    const world = w()
+    let state = initialStateFor(world)
+    state = { ...state, inventory: [
+      { id: 'lamp', state: { lit: false } },
+      { id: 'matches', state: { uses: 2 } },
+    ] }
+    const result = dispatch(state, { kind: 'verb-target', verb: 'light', target: { canonical: 'lamp', raw: 'lamp' } }, world)
+    expect(result.state.inventory.find((i) => i.id === 'lamp')?.state['lit']).toBe(true)
+    expect(result.state.inventory.find((i) => i.id === 'matches')?.state['uses']).toBe(1)
+    expect(result.appended.at(-1)?.text).toBe('The wick catches.')
+  })
+
+  it('refuses when the target is already lit', () => {
+    const world = w()
+    let state = initialStateFor(world)
+    state = { ...state, inventory: [
+      { id: 'lamp', state: { lit: true } },
+      { id: 'matches', state: { uses: 2 } },
+    ] }
+    const result = dispatch(state, { kind: 'verb-target', verb: 'light', target: { canonical: 'lamp', raw: 'lamp' } }, world)
+    expect(result.appended.at(-1)?.text).toBe("It's already lit.")
+  })
+
+  it('refuses when no lighter is in inventory', () => {
+    const world = w()
+    let state = initialStateFor(world)
+    state = { ...state, inventory: [{ id: 'lamp', state: { lit: false } }] }
+    const result = dispatch(state, { kind: 'verb-target', verb: 'light', target: { canonical: 'lamp', raw: 'lamp' } }, world)
+    expect(result.appended.at(-1)?.text).toBe('You have nothing to light it with.')
+  })
+
+  it('refuses when the target is not lightable', () => {
+    const world = w()
+    let state = initialStateFor(world)
+    state = { ...state, inventory: [{ id: 'rock', state: {} }, { id: 'matches', state: { uses: 2 } }] }
+    const result = dispatch(state, { kind: 'verb-target', verb: 'light', target: { canonical: 'rock', raw: 'rock' } }, world)
+    expect(result.appended.at(-1)?.text).toBe("You can't light that.")
+  })
+
+  it('emits the lighter-empty message when matches reach 0', () => {
+    const world = w()
+    let state = initialStateFor(world)
+    state = { ...state, inventory: [
+      { id: 'lamp', state: { lit: false } },
+      { id: 'matches', state: { uses: 1 } },
+    ] }
+    const result = dispatch(state, { kind: 'verb-target', verb: 'light', target: { canonical: 'lamp', raw: 'lamp' } }, world)
+    expect(result.state.inventory.find((i) => i.id === 'matches')?.state['uses']).toBe(0)
+    const texts = result.appended.map((l) => l.text)
+    expect(texts).toContain('The wick catches.')
+    expect(texts).toContain('The book is empty.')
+  })
+
+  it('extinguishes a lit lamp', () => {
+    const world = w()
+    let state = initialStateFor(world)
+    state = { ...state, inventory: [{ id: 'lamp', state: { lit: true } }] }
+    const result = dispatch(state, { kind: 'verb-target', verb: 'extinguish', target: { canonical: 'lamp', raw: 'lamp' } }, world)
+    expect(result.state.inventory.find((i) => i.id === 'lamp')?.state['lit']).toBe(false)
+    expect(result.appended.at(-1)?.text).toBe('The flame dies.')
+  })
+
+  it("refuses to extinguish what isn't lit", () => {
+    const world = w()
+    let state = initialStateFor(world)
+    state = { ...state, inventory: [{ id: 'lamp', state: { lit: false } }] }
+    const result = dispatch(state, { kind: 'verb-target', verb: 'extinguish', target: { canonical: 'lamp', raw: 'lamp' } }, world)
+    expect(result.appended.at(-1)?.text).toBe("It isn't lit.")
+  })
+})

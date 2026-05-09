@@ -117,6 +117,8 @@ export function dispatch(state: GameState, command: ParsedCommand, world: World)
     if (command.verb === 'drop') return handleDrop(stateWithNoun, command.target.canonical, world)
     if (command.verb === 'examine' || command.verb === 'look') return handleExamine(stateWithNoun, command.target.canonical, world)
     if (command.verb === 'read') return handleRead(stateWithNoun, command.target.canonical, world)
+    if (command.verb === 'light') return handleLight(stateWithNoun, command.target.canonical, null, world)
+    if (command.verb === 'extinguish') return handleExtinguish(stateWithNoun, command.target.canonical, world)
     return narrate(stateWithNoun, [{ kind: 'narration', text: `You're not sure how to ${command.verb} that.` }])
   }
 
@@ -275,4 +277,77 @@ function handleRead(state: GameState, itemId: string, world: World): DispatchRes
     return narrate(state, [{ kind: 'narration', text: "There's nothing to read on it." }])
   }
   return narrate(state, [{ kind: 'narration', text: item.readableText }])
+}
+
+function handleLight(state: GameState, targetId: string, instrumentId: string | null, world: World): DispatchResult {
+  const target = world.items[targetId]
+  if (!target) return narrate(state, [{ kind: 'narration', text: "You don't see anything like that." }])
+  if (!target.lightable) return narrate(state, [{ kind: 'narration', text: "You can't light that." }])
+  const targetInst = state.inventory.find((i) => i.id === targetId) ?? null
+  const visibleInRoom = getItemsInRoom(state, world, state.location).includes(targetId)
+  if (!targetInst && !visibleInRoom) {
+    return narrate(state, [{ kind: 'narration', text: "You don't see anything like that." }])
+  }
+  // The 'lit' state lives on the inventory instance for inventory items, or
+  // (eventually) on roomState for items left in a room. For now we only
+  // support lighting items the player is carrying.
+  if (!targetInst) {
+    return narrate(state, [{ kind: 'narration', text: "You'd have to be carrying it." }])
+  }
+  if (targetInst.state['lit'] === true) {
+    return narrate(state, [{ kind: 'narration', text: "It's already lit." }])
+  }
+
+  // Pick an instrument. If explicit, validate it; if implicit, find any.
+  let lighterInst = null as typeof state.inventory[number] | null
+  if (instrumentId) {
+    lighterInst = state.inventory.find((i) => i.id === instrumentId) ?? null
+    if (!lighterInst) return narrate(state, [{ kind: 'narration', text: "You don't have that." }])
+    const lighterDef = world.items[instrumentId]
+    if (!lighterDef?.lighter) return narrate(state, [{ kind: 'narration', text: "That isn't going to help." }])
+    if (typeof lighterInst.state['uses'] === 'number' && lighterInst.state['uses'] <= 0) {
+      return narrate(state, [{ kind: 'narration', text: "It is spent." }])
+    }
+  } else {
+    for (const inst of state.inventory) {
+      const def = world.items[inst.id]
+      if (!def?.lighter) continue
+      if (typeof inst.state['uses'] === 'number' && inst.state['uses'] <= 0) continue
+      lighterInst = inst
+      break
+    }
+    if (!lighterInst) {
+      return narrate(state, [{ kind: 'narration', text: 'You have nothing to light it with.' }])
+    }
+  }
+
+  // Apply state changes immutably.
+  const lighterDef = world.items[lighterInst.id]!
+  const lighterUsesField = typeof lighterInst.state['uses'] === 'number' ? lighterInst.state['uses'] : null
+  const newLighterUses = lighterUsesField === null ? null : lighterUsesField - 1
+  const newInventory = state.inventory.map((i) => {
+    if (i.id === targetInst.id) return { ...i, state: { ...i.state, lit: true } }
+    if (i.id === lighterInst!.id && newLighterUses !== null) return { ...i, state: { ...i.state, uses: newLighterUses } }
+    return i
+  })
+  const lines: TranscriptLine[] = [{ kind: 'narration', text: target.litText ?? 'It catches.' }]
+  if (newLighterUses === 0) {
+    lines.push({ kind: 'narration', text: lighterDef.lighterEmptyText ?? 'It is spent.' })
+  }
+  return narrate({ ...state, inventory: newInventory }, lines)
+}
+
+function handleExtinguish(state: GameState, targetId: string, world: World): DispatchResult {
+  const target = world.items[targetId]
+  if (!target) return narrate(state, [{ kind: 'narration', text: "You don't see anything like that." }])
+  if (!target.lightable) return narrate(state, [{ kind: 'narration', text: "You can't extinguish that." }])
+  const targetInst = state.inventory.find((i) => i.id === targetId)
+  if (!targetInst) return narrate(state, [{ kind: 'narration', text: "You'd have to be carrying it." }])
+  if (targetInst.state['lit'] !== true) {
+    return narrate(state, [{ kind: 'narration', text: "It isn't lit." }])
+  }
+  const newInventory = state.inventory.map((i) =>
+    i.id === targetId ? { ...i, state: { ...i.state, lit: false } } : i,
+  )
+  return narrate({ ...state, inventory: newInventory }, [{ kind: 'narration', text: target.extinguishedText ?? 'The flame dies.' }])
 }
