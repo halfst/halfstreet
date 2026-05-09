@@ -130,22 +130,52 @@ export function parseRoom(raw: string, sourcePath: string): Room {
   return room
 }
 
+const ITEM_SECTION_KEYS = ['read', 'lit', 'extinguished', 'lighter-empty'] as const
+type ItemSectionKey = typeof ITEM_SECTION_KEYS[number]
+
 export function parseItem(raw: string, sourcePath: string): Item {
   const parsed = matter(raw)
   const frontmatter = stripWikilink(parsed.data) as Record<string, unknown>
   const fm = itemFrontmatterSchema.parse(frontmatter)
-  const long = parsed.content.trim()
-  if (long.length === 0) {
+
+  // Split body into long-description prefix + sectioned remainder.
+  // The first `## key` header (if any) marks the boundary.
+  const body = parsed.content
+  const firstHeader = body.match(/^##\s+[\w-]+\s*$/m)
+  const longRaw = firstHeader ? body.slice(0, firstHeader.index!).trim() : body.trim()
+  if (longRaw.length === 0) {
     throw new Error(`${sourcePath}: empty long description`)
   }
-  return {
+  const sections = firstHeader ? splitSections(body.slice(firstHeader.index!)) : {}
+
+  // Validate that only known section keys appear.
+  for (const key of Object.keys(sections)) {
+    if (!ITEM_SECTION_KEYS.includes(key as ItemSectionKey)) {
+      throw new Error(`${sourcePath}: unknown item section "## ${key}". Allowed: ${ITEM_SECTION_KEYS.join(', ')}`)
+    }
+  }
+
+  if (fm.readable && !sections['read']) {
+    throw new Error(`${sourcePath}: ## read section is required when readable: true`)
+  }
+
+  const item: Item = {
     id: fm.id,
     names: fm.names,
     short: fm.short,
-    long,
+    long: longRaw,
     initialState: fm.initialState,
     takeable: fm.takeable,
   }
+  if (fm.readable !== undefined) item.readable = fm.readable
+  if (fm.lightable !== undefined) item.lightable = fm.lightable
+  if (fm.lighter !== undefined) item.lighter = fm.lighter
+  if (fm.lighterUses !== undefined) item.lighterUses = fm.lighterUses
+  if (sections['read']) item.readableText = sections['read']
+  if (sections['lit']) item.litText = sections['lit']
+  if (sections['extinguished']) item.extinguishedText = sections['extinguished']
+  if (sections['lighter-empty']) item.lighterEmptyText = sections['lighter-empty']
+  return item
 }
 
 export interface ParsedEnding {
