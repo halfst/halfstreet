@@ -1,7 +1,7 @@
 import matter from 'gray-matter'
 import type { Room, RoomDescriptions, Item } from './types'
 import type { Direction } from '../engine/types'
-import { roomFrontmatterSchema, itemFrontmatterSchema, endingFrontmatterSchema } from './schema'
+import { roomFrontmatterSchema, itemFrontmatterSchema, endingFrontmatterSchema, encounterFrontmatterSchema } from './schema'
 
 const WIKILINK = /^\[\[([^\]|]+)(?:\|[^\]]*)?\]\]$/
 
@@ -129,5 +129,28 @@ export function parseEnding(raw: string, _sourcePath: string): ParsedEnding {
   return {
     id: fm.id,
     ending: { whenFlags: fm.whenFlags, narration: parsed.content.trim() },
+  }
+}
+
+export interface ParsedEncounterNarration {
+  id: string
+  startsIn: string
+  initialPhase: string
+  narrations: Record<string, string>
+}
+
+export function parseEncounterNarration(raw: string, sourcePath: string): ParsedEncounterNarration {
+  const parsed = matter(raw)
+  const frontmatter = stripWikilink(parsed.data) as Record<string, unknown>
+  const fm = encounterFrontmatterSchema.parse(frontmatter)
+  const narrations = splitSections(parsed.content)
+  if (Object.keys(narrations).length === 0) {
+    throw new Error(`${sourcePath}: no narration sections found`)
+  }
+  return {
+    id: fm.id,
+    startsIn: fm.startsIn,
+    initialPhase: fm.initialPhase,
+    narrations,
   }
 }

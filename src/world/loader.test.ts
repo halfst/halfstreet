@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseRoom, parseItem, parseEnding } from './loader'
+import { parseRoom, parseItem, parseEnding, parseEncounterNarration } from './loader'
 
 const FOYER_MD = `---
 id: foyer
@@ -244,5 +244,45 @@ whenFlags: {}
 `
     const result = parseEnding(md, 'endings/wrong.md')
     expect(result.ending.narration).toBe('')
+  })
+})
+
+const RAT_MD = `---
+id: rat
+startsIn: "[[cellar-stair]]"
+initialPhase: lurking
+---
+
+## lurking
+A heavy rat watches you from the third step. Its eyes catch the light.
+
+## attack-resolved
+You stamp. The rat squeals and is gone into the dark.
+
+## wait-stays
+The rat does not move. Neither do you.
+`
+
+describe('parseEncounterNarration', () => {
+  it('parses frontmatter and narration sections', () => {
+    const doc = parseEncounterNarration(RAT_MD, 'encounters/rat.md')
+    expect(doc.id).toBe('rat')
+    expect(doc.startsIn).toBe('cellar-stair')
+    expect(doc.initialPhase).toBe('lurking')
+    expect(doc.narrations).toEqual({
+      lurking: 'A heavy rat watches you from the third step. Its eyes catch the light.',
+      'attack-resolved': 'You stamp. The rat squeals and is gone into the dark.',
+      'wait-stays': 'The rat does not move. Neither do you.',
+    })
+  })
+
+  it('throws when no sections are present', () => {
+    const md = `---
+id: x
+startsIn: room
+initialPhase: p
+---
+`
+    expect(() => parseEncounterNarration(md, 'encounters/x.md')).toThrow(/no narration sections/i)
   })
 })
