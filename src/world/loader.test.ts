@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { parseRoom, parseItem, parseEnding, parseEncounterNarration } from './loader'
+import { describe, it, expect, beforeEach } from 'vitest'
+import { parseRoom, parseItem, parseEnding, parseEncounterNarration, narration, registerEncounterNarrations, _resetEncounterNarrationRegistry } from './loader'
 
 const FOYER_MD = `---
 id: foyer
@@ -284,5 +284,29 @@ initialPhase: p
 ---
 `
     expect(() => parseEncounterNarration(md, 'encounters/x.md')).toThrow(/no narration sections/i)
+  })
+})
+
+describe('narration registry', () => {
+  beforeEach(() => {
+    _resetEncounterNarrationRegistry()
+  })
+
+  it('returns prose for a registered encounter and key', () => {
+    registerEncounterNarrations([
+      { id: 'rat', startsIn: 'cellar-stair', initialPhase: 'lurking', narrations: { lurking: 'watches' } },
+    ])
+    expect(narration('rat', 'lurking')).toBe('watches')
+  })
+
+  it('throws with available keys when key is missing', () => {
+    registerEncounterNarrations([
+      { id: 'rat', startsIn: 'cellar-stair', initialPhase: 'lurking', narrations: { lurking: 'a', resolved: 'b' } },
+    ])
+    expect(() => narration('rat', 'sleping')).toThrow(/no matching section.*Available: lurking, resolved/i)
+  })
+
+  it('throws when encounter is unknown', () => {
+    expect(() => narration('ghost', 'whatever')).toThrow(/unknown encounter id "ghost"/i)
   })
 })

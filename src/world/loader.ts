@@ -154,3 +154,48 @@ export function parseEncounterNarration(raw: string, sourcePath: string): Parsed
     narrations,
   }
 }
+
+const encounterNarrationRegistry = new Map<string, Map<string, string>>()
+
+export function registerEncounterNarrations(docs: ParsedEncounterNarration[]): void {
+  for (const doc of docs) {
+    encounterNarrationRegistry.set(doc.id, new Map(Object.entries(doc.narrations)))
+  }
+}
+
+export function _resetEncounterNarrationRegistry(autoReregister: boolean = false): void {
+  encounterNarrationRegistry.clear()
+  if (autoReregister) autoRegisterEncounters()
+}
+
+export function narration(encounterId: string, key: string): string {
+  const map = encounterNarrationRegistry.get(encounterId)
+  if (!map) {
+    throw new Error(`narration(): unknown encounter id "${encounterId}"`)
+  }
+  const value = map.get(key)
+  if (value === undefined) {
+    const available = [...map.keys()].join(', ')
+    throw new Error(
+      `narration(): no matching section "## ${key}" for encounter "${encounterId}". Available: ${available}`,
+    )
+  }
+  return value
+}
+
+// Auto-register encounter narrations from co-located markdown files at module init.
+// This populates the registry BEFORE encounters.ts is evaluated (ESM evaluates dependencies first),
+// so encounters.ts can call narration() at top level without explicit ordering.
+// While src/mystery/world/encounters/ does not yet exist (Task 8 creates it), this is a no-op.
+const _encounterFiles = import.meta.glob<string>('./encounters/*.md', {
+  eager: true, query: '?raw', import: 'default',
+})
+
+function autoRegisterEncounters(): void {
+  for (const [path, raw] of Object.entries(_encounterFiles)) {
+    const doc = parseEncounterNarration(raw, path)
+    encounterNarrationRegistry.set(doc.id, new Map(Object.entries(doc.narrations)))
+  }
+}
+
+autoRegisterEncounters()
