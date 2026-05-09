@@ -86,6 +86,20 @@ export function dispatch(state: GameState, command: ParsedCommand, world: World)
     return handleGo(state, command.direction, world)
   }
 
+  if (command.kind === 'ambiguous') {
+    const candidateShorts = command.candidates.map((id) => world.items[id]?.short ?? id)
+    const list =
+      candidateShorts.length === 2
+        ? `${candidateShorts[0]}, or ${candidateShorts[1]}`
+        : candidateShorts.slice(0, -1).join(', ') + ', or ' + candidateShorts[candidateShorts.length - 1]
+    const prompt = `Which ${command.rawNoun} — ${list}?`
+    const next: GameState = {
+      ...state,
+      pendingDisambiguation: { verb: command.verb, candidates: command.candidates, prompt },
+    }
+    return narrate(next, [{ kind: 'narration', text: prompt }])
+  }
+
   if (command.kind === 'verb-only') {
     if (command.verb === 'look') return handleLook(state, world)
     if (command.verb === 'inventory') return handleInventory(state, world)

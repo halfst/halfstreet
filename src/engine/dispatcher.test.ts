@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { dispatch, initialStateFor } from './dispatcher'
 import type { World } from '../world/types'
-import type { GameState } from './types'
+import type { GameState, ParsedCommand } from './types'
 import { SCHEMA_VERSION } from './types'
 
 const world: World = {
@@ -155,5 +155,60 @@ describe('dispatcher — inventory', () => {
     const empty: GameState = { ...initialStateFor(world), inventory: [] }
     const r = dispatch(empty, { kind: 'verb-only', verb: 'inventory' }, world)
     expect(r.appended.some((l) => /empty-handed|carrying nothing/i.test(l.text))).toBe(true)
+  })
+})
+
+describe('ambiguous → disambiguation flow', () => {
+  function makeAmbiguousWorld(): World {
+    return {
+      startingRoom: 'r',
+      startingInventory: [],
+      rooms: {
+        r: {
+          id: 'r',
+          title: '[ R ]',
+          descriptions: { firstVisit: 'r', revisit: 'r', examined: 'r' },
+          exits: {},
+          items: ['iron-key', 'brass-key'],
+        },
+      },
+      items: {
+        'iron-key': { id: 'iron-key', names: ['key', 'iron key'], short: 'an iron key', long: '.', initialState: {}, takeable: true },
+        'brass-key': { id: 'brass-key', names: ['key', 'brass key'], short: 'a brass key', long: '.', initialState: {}, takeable: true },
+      },
+      encounters: {},
+      endings: {
+        true: { whenFlags: {}, narration: '' },
+        wrong: { whenFlags: {}, narration: '' },
+        bad: { whenFlags: {}, narration: '' },
+      },
+    }
+  }
+
+  it('sets pendingDisambiguation and prompts when the parser returns ambiguous', () => {
+    const world = makeAmbiguousWorld()
+    const state = initialStateFor(world)
+    const cmd: ParsedCommand = {
+      kind: 'ambiguous', verb: 'take', rawNoun: 'key', candidates: ['iron-key', 'brass-key'],
+    }
+    const result = dispatch(state, cmd, world)
+    expect(result.state.pendingDisambiguation).toEqual({
+      verb: 'take',
+      candidates: ['iron-key', 'brass-key'],
+      prompt: 'Which key — an iron key, or a brass key?',
+    })
+    expect(result.appended[0]?.text).toBe('Which key — an iron key, or a brass key?')
+  })
+
+  it('handles a single-word disambiguation reply by re-issuing the verb', () => {
+    const world = makeAmbiguousWorld()
+    let state = initialStateFor(world)
+    state = {
+      ...state,
+      pendingDisambiguation: { verb: 'take', candidates: ['iron-key', 'brass-key'], prompt: '...' },
+    }
+    const result = dispatch(state, { kind: 'disambiguation', chosen: 'iron-key' }, world)
+    expect(result.state.pendingDisambiguation).toBeNull()
+    expect(result.state.inventory.find((i) => i.id === 'iron-key')).toBeDefined()
   })
 })
