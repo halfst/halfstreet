@@ -1,0 +1,49 @@
+---
+import '../mystery/ui/crt.css'
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Halfstreet — Ethan J Lewis</title>
+    <meta name="description" content="A gothic mystery." />
+    <meta name="robots" content="noindex" />
+  </head>
+  <body>
+    <div class="mystery-root" data-mystery-root>
+      <div class="mystery-bezel">
+        <div class="mystery-theme-toggle" data-mystery-theme-toggle>
+          <button type="button" data-theme-choice="amber" aria-pressed="true">[B]</button>
+          <button type="button" data-theme-choice="ansi" aria-pressed="false">[C]</button>
+        </div>
+        <div class="mystery-transcript" data-mystery-transcript aria-live="polite" aria-atomic="false"></div>
+        <div class="mystery-chips" data-mystery-chips></div>
+        <div class="mystery-input-row">
+          <input
+            class="mystery-input"
+            data-mystery-input
+            type="text"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="none"
+            spellcheck="false"
+            aria-label="Command input"
+          />
+        </div>
+      </div>
+    </div>
+    <script>
+      // Theme attribute is set on :root before any rendering to avoid a flash
+      // of the wrong palette. The full theme toggle wiring lands in Task 11.
+      const stored = (() => {
+        try { return localStorage.getItem('halfstreet:theme:v1') } catch { return null }
+      })()
+      document.documentElement.setAttribute('data-mystery-theme', stored === 'ansi' ? 'ansi' : 'amber')
+    </script>
+    <script>
+      import '../mystery/ui/terminal.ts'
+      import '../mystery/ui/theme.ts'
+    </script>
+  </body>
+</html>
