@@ -297,3 +297,60 @@ describe('ambiguous noun', () => {
     if (cmd.kind === 'verb-target') expect(cmd.target.canonical).toBe('iron-key')
   })
 })
+
+describe('verb-target-prep with "with"', () => {
+  const ctx: ParserContext = {
+    knownItems: ['lamp', 'matches'],
+    knownEncounters: [],
+    visibleNouns: [
+      { id: 'lamp', aliases: ['lamp'] },
+      { id: 'matches', aliases: ['matches', 'matchbook'] },
+    ],
+    inventoryItemIds: ['matches'],
+    lastNoun: null,
+    awaitingDisambiguation: null,
+  }
+
+  it('parses "light lamp with matches" into verb-target-prep', () => {
+    const cmd = parse('light lamp with matches', ctx)
+    expect(cmd).toEqual({
+      kind: 'verb-target-prep',
+      verb: 'light',
+      target: { canonical: 'lamp', raw: 'lamp' },
+      preposition: 'with',
+      indirect: { canonical: 'matches', raw: 'matches' },
+    })
+  })
+
+  it('parses "use shears on vines" into verb-target-prep', () => {
+    const localCtx: ParserContext = {
+      knownItems: ['shears', 'ivy-figure'],
+      knownEncounters: [],
+      visibleNouns: [
+        { id: 'shears', aliases: ['shears'] },
+        { id: 'ivy-figure', aliases: ['vines', 'ivy'] },
+      ],
+      inventoryItemIds: ['shears'],
+      lastNoun: null,
+      awaitingDisambiguation: null,
+    }
+    const cmd = parse('use shears on vines', localCtx)
+    expect(cmd).toEqual({
+      kind: 'verb-target-prep',
+      verb: 'use',
+      target: { canonical: 'shears', raw: 'shears' },
+      preposition: 'on',
+      indirect: { canonical: 'ivy-figure', raw: 'vines' },
+    })
+  })
+
+  it('still parses verb-target when no preposition is present', () => {
+    const cmd = parse('take lamp', ctx)
+    expect(cmd.kind).toBe('verb-target')
+  })
+
+  it('falls back to unknown-noun when one side fails to resolve', () => {
+    const cmd = parse('light lamp with feathers', ctx)
+    expect(cmd).toEqual({ kind: 'unknown', raw: 'light lamp with feathers', reason: 'unknown-noun' })
+  })
+})
