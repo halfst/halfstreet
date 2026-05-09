@@ -4,6 +4,7 @@ import { dispatch, initialStateFor } from '../engine/dispatcher'
 import { saveState, loadState, clearSave } from '../engine/save'
 import { world } from '../world'
 import type { GameState, TranscriptLine } from '../engine/types'
+import { TRANSCRIPT_CAP } from '../engine/types'
 import { computeChips } from './chips'
 import { renderChips } from './chip-render'
 
@@ -69,7 +70,12 @@ if (!transcriptEl || !inputEl) {
     transcriptEl.scrollTop = transcriptEl.scrollHeight
   }
 
+  // For UI-originated lines (player input, restart/undo/quit messages, error
+  // notices). Pushes into state.transcript so they survive reload, then renders.
+  // Engine-originated lines (from dispatch) are already in state.transcript;
+  // those use renderAll directly.
   const appendLines = (lines: TranscriptLine[]): void => {
+    state = { ...state, transcript: [...state.transcript, ...lines].slice(-TRANSCRIPT_CAP) }
     renderAll(lines)
   }
 
@@ -126,7 +132,7 @@ if (!transcriptEl || !inputEl) {
       lastState = state
       const result = dispatch(state, command, world)
       state = result.state
-      appendLines(result.appended)
+      renderAll(result.appended)  // dispatch already pushed these into state.transcript
       saveState(state)
       transcriptEl.scrollTop = transcriptEl.scrollHeight
       if (raw.trim().toLowerCase() === 'theme') {
