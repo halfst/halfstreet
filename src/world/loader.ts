@@ -1,7 +1,7 @@
 import matter from 'gray-matter'
 import type { Room, RoomDescriptions, Item } from './types'
 import type { Direction } from '../engine/types'
-import { roomFrontmatterSchema, itemFrontmatterSchema } from './schema'
+import { roomFrontmatterSchema, itemFrontmatterSchema, endingFrontmatterSchema } from './schema'
 
 const WIKILINK = /^\[\[([^\]|]+)(?:\|[^\]]*)?\]\]$/
 
@@ -113,5 +113,21 @@ export function parseItem(raw: string, sourcePath: string): Item {
     long,
     initialState: fm.initialState,
     takeable: fm.takeable,
+  }
+}
+
+export interface ParsedEnding {
+  id: 'true' | 'wrong' | 'bad'
+  ending: { whenFlags: Record<string, string | boolean | number>; narration: string }
+}
+
+export function parseEnding(raw: string, _sourcePath: string): ParsedEnding {
+  const parsed = matter(raw)
+  // YAML parses bare `true` as boolean; coerce id to string before schema validation.
+  const data = { ...parsed.data, id: String(parsed.data.id) }
+  const fm = endingFrontmatterSchema.parse(data)
+  return {
+    id: fm.id,
+    ending: { whenFlags: fm.whenFlags, narration: parsed.content.trim() },
   }
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseRoom, parseItem } from './loader'
+import { parseRoom, parseItem, parseEnding } from './loader'
 
 const FOYER_MD = `---
 id: foyer
@@ -212,5 +212,37 @@ takeable: false
 ---
 `
     expect(() => parseItem(md, 'items/x.md')).toThrow(/empty long description/i)
+  })
+})
+
+const TRUE_ENDING_MD = `---
+id: true
+whenFlags:
+  ratGone: true
+---
+
+You stand at the top of the stair. The thing below has settled.
+
+The door behind you opens, and outside, finally, is morning.
+`
+
+describe('parseEnding', () => {
+  it('parses an ending with flags and prose', () => {
+    const result = parseEnding(TRUE_ENDING_MD, 'endings/true.md')
+    expect(result.id).toBe('true')
+    expect(result.ending.whenFlags).toEqual({ ratGone: true })
+    expect(result.ending.narration).toBe(
+      'You stand at the top of the stair. The thing below has settled.\n\nThe door behind you opens, and outside, finally, is morning.',
+    )
+  })
+
+  it('accepts an empty body (unreachable ending stub)', () => {
+    const md = `---
+id: wrong
+whenFlags: {}
+---
+`
+    const result = parseEnding(md, 'endings/wrong.md')
+    expect(result.ending.narration).toBe('')
   })
 })
