@@ -35,13 +35,13 @@ export type Theme = 'amber' | 'ansi'
 export interface ItemInstance {
   id: ItemId
   /** Per-instance state: lit/unlit, broken/whole, etc. */
-  state: Record<string, string | boolean | number>
+  state: Record<string, string | boolean | number | string[]>
 }
 
 export type EncounterPhase = string  // phase names are encounter-specific
 
 export interface TranscriptLine {
-  kind: 'narration' | 'player' | 'system'
+  kind: 'narration' | 'player' | 'system' | 'ending'
   text: string
 }
 
@@ -56,9 +56,9 @@ export interface GameState {
   location: RoomId
   inventory: ItemInstance[]
   /** Per-room state: visited, items dropped, descriptive flags. */
-  roomState: Record<RoomId, Record<string, string | boolean | number>>
+  roomState: Record<RoomId, Record<string, string | boolean | number | string[]>>
   /** Story-wide flags (e.g. 'gateOpened', 'mirrorTarnished'). */
-  flags: Record<string, string | boolean | number>
+  flags: Record<string, string | boolean | number | string[]>
   resolveLevel: ResolveLevel
   /** Active encounter phase by encounter id, or null if no encounter is mid-flight. */
   encounterState: Record<EncounterId, EncounterPhase>
