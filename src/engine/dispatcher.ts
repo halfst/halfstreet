@@ -41,8 +41,8 @@ function append(state: GameState, lines: TranscriptLine[]): GameState {
 
 export function getItemsInRoom(state: GameState, world: World, roomId: string): string[] {
   const baseItems = world.rooms[roomId]?.items ?? []
-  const dropped = (state.roomState[roomId]?.['droppedItems'] as string[] | undefined) ?? []
-  const taken = (state.roomState[roomId]?.['takenItems'] as string[] | undefined) ?? []
+  const dropped = (state.roomState[roomId]?.['droppedItems'] ?? []) as string[]
+  const taken = (state.roomState[roomId]?.['takenItems'] ?? []) as string[]
   return [...baseItems.filter((i) => !taken.includes(i)), ...dropped]
 }
 
@@ -51,7 +51,7 @@ function setRoomFlag(state: GameState, roomId: string, key: string, value: strin
     ...state,
     roomState: {
       ...state.roomState,
-      [roomId]: { ...(state.roomState[roomId] ?? {}), [key]: value as string | boolean | number },
+      [roomId]: { ...(state.roomState[roomId] ?? {}), [key]: value },
     },
   }
 }
@@ -218,10 +218,10 @@ function handleTake(state: GameState, itemId: string, world: World): DispatchRes
     inventory: [...state.inventory, { id: itemId, state: { ...item.initialState } }],
   }
   if (wasInRoomBase) {
-    const taken = (next.roomState[state.location]?.['takenItems'] as string[] | undefined) ?? []
+    const taken = (next.roomState[state.location]?.['takenItems'] ?? []) as string[]
     next = setRoomFlag(next, state.location, 'takenItems', [...taken, itemId])
   } else {
-    const dropped = (next.roomState[state.location]?.['droppedItems'] as string[] | undefined) ?? []
+    const dropped = (next.roomState[state.location]?.['droppedItems'] ?? []) as string[]
     next = setRoomFlag(next, state.location, 'droppedItems', dropped.filter((id) => id !== itemId))
   }
   return narrate(next, [{ kind: 'narration', text: 'Taken.' }])
@@ -235,7 +235,7 @@ function handleDrop(state: GameState, itemId: string, world: World): DispatchRes
     ...state,
     inventory: state.inventory.filter((i) => i.id !== itemId),
   }
-  const dropped = (next.roomState[state.location]?.['droppedItems'] as string[] | undefined) ?? []
+  const dropped = (next.roomState[state.location]?.['droppedItems'] ?? []) as string[]
   next = setRoomFlag(next, state.location, 'droppedItems', [...dropped, itemId])
   return narrate(next, [{ kind: 'narration', text: 'Dropped.' }])
 }
