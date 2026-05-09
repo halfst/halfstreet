@@ -29,7 +29,6 @@ export function initialStateFor(world: World): GameState {
     lastNoun: null,
     pendingDisambiguation: null,
     transcript: opening,
-    theme: 'amber',
     endedWith: null,
   }
 }
@@ -115,10 +114,10 @@ function narrate(state: GameState, lines: TranscriptLine[]): DispatchResult {
 
 function handleMeta(state: GameState, verb: 'restart' | 'undo' | 'hint' | 'save' | 'quit' | 'theme'): DispatchResult {
   if (verb === 'save') return narrate(state, [{ kind: 'system', text: '(your progress is saved automatically)' }])
-  if (verb === 'theme') {
-    const newTheme = state.theme === 'amber' ? 'ansi' : 'amber'
-    return narrate({ ...state, theme: newTheme }, [{ kind: 'system', text: `Theme: ${newTheme}.` }])
-  }
+  // 'theme' is a UI preference: the terminal intercepts it before dispatch and
+  // dispatches a 'halfstreet-toggle-theme' DOM event. The engine no-ops here so
+  // typing the verb still produces transcript output if the UI ever misses it.
+  if (verb === 'theme') return narrate(state, [{ kind: 'system', text: '(theme)' }])
   // restart / undo / hint / quit are handled by the UI layer (state mutations
   // require coordination with the save layer and route navigation). The
   // engine acknowledges them with a no-op narration; the UI intercepts before

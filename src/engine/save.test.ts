@@ -14,7 +14,6 @@ const baseState = (overrides: Partial<GameState> = {}): GameState => ({
   lastNoun: null,
   pendingDisambiguation: null,
   transcript: [],
-  theme: 'amber',
   endedWith: null,
   ...overrides,
 })

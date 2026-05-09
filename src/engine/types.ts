@@ -30,7 +30,6 @@ export type ParsedCommand =
   | { kind: 'unknown'; raw: string; reason: 'unknown-verb' | 'unknown-noun' | 'malformed' }
 
 export type ResolveLevel = 'steady' | 'shaken' | 'reeling' | 'returning'
-export type Theme = 'amber' | 'ansi'
 
 export interface ItemInstance {
   id: ItemId
@@ -68,7 +67,6 @@ export interface GameState {
   pendingDisambiguation: PendingDisambiguation | null
   /** Capped at 200 entries; older entries are dropped on append. */
   transcript: TranscriptLine[]
-  theme: Theme
   /** Set true when the player has reached an ending. UI shows ending screen. */
   endedWith: 'true' | 'wrong' | 'bad' | null
 }

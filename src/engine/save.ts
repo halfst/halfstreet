@@ -48,6 +48,9 @@ export function loadState(): GameState | null {
     return null
   }
 
+  // Older saves may carry fields no longer in GameState (e.g. `theme` before
+  // it became a UI-only preference). TypeScript ignores extra fields at runtime;
+  // bump SCHEMA_VERSION only when the meaning of an existing field changes.
   return parsed as GameState
 }
 
