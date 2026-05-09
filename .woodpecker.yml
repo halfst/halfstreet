@@ -1,23 +1,27 @@
 when:
-  - event: [push, pull_request, manual]
+  - event: push
+    branch: [main]
+  - event: manual
 
 steps:
-  - name: install
-    image: node:22-alpine
+  - name: build
+    image: node:22
     commands:
       - npm ci
-
-  - name: test
-    image: node:22-alpine
-    commands:
-      - npm test
-
-  - name: build
-    image: node:22-alpine
-    commands:
+      - npm run test
       - npm run build
 
-  - name: notify
+  - name: deploy
+    image: node:22
+    environment:
+      CLOUDFLARE_API_TOKEN:
+        from_secret: cloudflare_api_token
+      CLOUDFLARE_ACCOUNT_ID:
+        from_secret: cloudflare_account_id
+    commands:
+      - npx wrangler pages deploy ./dist --project-name halfstreet-io --branch $CI_COMMIT_BRANCH
+
+  - name: notify-success
     image: curlimages/curl:latest
     environment:
       PUSHOVER_TOKEN:
@@ -26,21 +30,35 @@ steps:
         from_secret: pushover_user
     commands:
       - |
-        if [ "$CI_PIPELINE_STATUS" = "success" ]; then
-          TITLE="Halfstreet CI passed"
-          PRIORITY=-1
-        else
-          TITLE="Halfstreet CI failed"
-          PRIORITY=0
-        fi
-        curl -s \
+        curl -sS --fail-with-body \
           --form-string "token=$PUSHOVER_TOKEN" \
           --form-string "user=$PUSHOVER_USER" \
-          --form-string "title=$TITLE" \
-          --form-string "priority=$PRIORITY" \
-          --form-string "message=$CI_COMMIT_BRANCH: $CI_COMMIT_MESSAGE" \
+          --form-string "title=halfstreet.io deployed" \
+          --form-string "message=Build $CI_PIPELINE_NUMBER succeeded on $CI_COMMIT_BRANCH — $CI_COMMIT_MESSAGE" \
+          --form-string "priority=0" \
           --form-string "url=$CI_PIPELINE_URL" \
-          --form-string "url_title=View pipeline" \
+          --form-string "url_title=View build" \
           https://api.pushover.net/1/messages.json
     when:
-      - status: [success, failure]
+      - status: success
+
+  - name: notify-failure
+    image: curlimages/curl:latest
+    environment:
+      PUSHOVER_TOKEN:
+        from_secret: pushover_token
+      PUSHOVER_USER:
+        from_secret: pushover_user
+    commands:
+      - |
+        curl -sS --fail-with-body \
+          --form-string "token=$PUSHOVER_TOKEN" \
+          --form-string "user=$PUSHOVER_USER" \
+          --form-string "title=halfstreet.io build failed" \
+          --form-string "message=Build $CI_PIPELINE_NUMBER failed on $CI_COMMIT_BRANCH — $CI_COMMIT_MESSAGE" \
+          --form-string "priority=1" \
+          --form-string "url=$CI_PIPELINE_URL" \
+          --form-string "url_title=View build" \
+          https://api.pushover.net/1/messages.json
+    when:
+      - status: failure
