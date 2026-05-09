@@ -212,3 +212,43 @@ describe('ambiguous → disambiguation flow', () => {
     expect(result.state.inventory.find((i) => i.id === 'iron-key')).toBeDefined()
   })
 })
+
+function readWorld(): World {
+  return {
+    startingRoom: 'r',
+    startingInventory: [],
+    rooms: { r: { id: 'r', title: '[ R ]', descriptions: { firstVisit: '.', revisit: '.', examined: '.' }, exits: {}, items: [] } },
+    items: {
+      letter: { id: 'letter', names: ['letter'], short: 'a letter', long: 'A letter.', initialState: {}, takeable: true, readable: true, readableText: 'You loved Halfstreet, the letter says.' },
+      rock: { id: 'rock', names: ['rock'], short: 'a rock', long: 'A rock.', initialState: {}, takeable: true },
+    },
+    encounters: {},
+    endings: {
+      true: { whenFlags: {}, narration: '' },
+      wrong: { whenFlags: {}, narration: '' },
+      bad: { whenFlags: {}, narration: '' },
+    },
+  }
+}
+
+describe('read verb', () => {
+  it('narrates readableText for a readable item in inventory', () => {
+    const world = readWorld()
+    let state = initialStateFor(world)
+    state = { ...state, inventory: [{ id: 'letter', state: {} }] }
+    const result = dispatch(state, {
+      kind: 'verb-target', verb: 'read', target: { canonical: 'letter', raw: 'letter' },
+    }, world)
+    expect(result.appended.at(-1)?.text).toBe('You loved Halfstreet, the letter says.')
+  })
+
+  it('errors politely on non-readable items', () => {
+    const world = readWorld()
+    let state = initialStateFor(world)
+    state = { ...state, inventory: [{ id: 'rock', state: {} }] }
+    const result = dispatch(state, {
+      kind: 'verb-target', verb: 'read', target: { canonical: 'rock', raw: 'rock' },
+    }, world)
+    expect(result.appended.at(-1)?.text).toBe("There's nothing to read on it.")
+  })
+})

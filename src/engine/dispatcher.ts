@@ -116,6 +116,7 @@ export function dispatch(state: GameState, command: ParsedCommand, world: World)
     if (command.verb === 'take') return handleTake(stateWithNoun, command.target.canonical, world)
     if (command.verb === 'drop') return handleDrop(stateWithNoun, command.target.canonical, world)
     if (command.verb === 'examine' || command.verb === 'look') return handleExamine(stateWithNoun, command.target.canonical, world)
+    if (command.verb === 'read') return handleRead(stateWithNoun, command.target.canonical, world)
     return narrate(stateWithNoun, [{ kind: 'narration', text: `You're not sure how to ${command.verb} that.` }])
   }
 
@@ -261,4 +262,17 @@ function handleExamine(state: GameState, itemId: string, world: World): Dispatch
     getItemsInRoom(state, world, state.location).includes(itemId)
   if (!visible) return narrate(state, [{ kind: 'narration', text: 'You don\'t see anything like that.' }])
   return narrate(state, [{ kind: 'narration', text: item.long }])
+}
+
+function handleRead(state: GameState, itemId: string, world: World): DispatchResult {
+  const item = world.items[itemId]
+  if (!item) return narrate(state, [{ kind: 'narration', text: "You don't see anything like that." }])
+  const visible =
+    state.inventory.find((i) => i.id === itemId) ||
+    getItemsInRoom(state, world, state.location).includes(itemId)
+  if (!visible) return narrate(state, [{ kind: 'narration', text: "You don't see anything like that." }])
+  if (!item.readable || !item.readableText) {
+    return narrate(state, [{ kind: 'narration', text: "There's nothing to read on it." }])
+  }
+  return narrate(state, [{ kind: 'narration', text: item.readableText }])
 }
