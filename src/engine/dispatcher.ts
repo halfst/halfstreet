@@ -1,6 +1,7 @@
 import type { World } from '../world/types'
 import type { GameState, ParsedCommand, DispatchResult, ItemInstance, TranscriptLine, NounRef } from './types'
 import { SCHEMA_VERSION, TRANSCRIPT_CAP } from './types'
+import { applyVerbToEncounter, maybeTriggerEncounter } from './encounters'
 
 export function initialStateFor(world: World): GameState {
   const startingRoom = world.rooms[world.startingRoom]
@@ -93,12 +94,15 @@ export function dispatch(state: GameState, command: ParsedCommand, world: World)
   }
 
   if (command.kind === 'verb-target') {
-    const next: NounRef = command.target
-    const stateWithNoun: GameState = { ...state, lastNoun: next }
+    const stateWithNoun: GameState = { ...state, lastNoun: command.target }
+    // Try the active encounter first — it may consume verbs like 'attack', 'hold'.
+    const encResult = applyVerbToEncounter(stateWithNoun, command, world)
+    if (encResult?.consumed) {
+      return { state: encResult.state, appended: encResult.lines }
+    }
     if (command.verb === 'take') return handleTake(stateWithNoun, command.target.canonical, world)
     if (command.verb === 'drop') return handleDrop(stateWithNoun, command.target.canonical, world)
     if (command.verb === 'examine' || command.verb === 'look') return handleExamine(stateWithNoun, command.target.canonical, world)
-    // Other verbs (use, light, attack, hold, etc.) handled by encounters in Task 6.
     return narrate(stateWithNoun, [{ kind: 'narration', text: `You're not sure how to ${command.verb} that.` }])
   }
 
@@ -148,17 +152,24 @@ function handleGo(state: GameState, direction: 'n' | 's' | 'e' | 'w' | 'u' | 'd'
   let next: GameState = { ...state, location: dest }
   next = setRoomFlag(next, dest, 'visited', true)
 
-  // Resolve regenerates one step on entering a safe room.
   if (destRoom.safe) {
     const ladder = ['steady', 'shaken', 'reeling', 'returning'] as const
     const idx = ladder.indexOf(state.resolveLevel)
     if (idx > 0) next = { ...next, resolveLevel: ladder[idx - 1]! }
   }
 
-  return narrate(next, [
+  const arrivalLines: TranscriptLine[] = [
     { kind: 'system', text: destRoom.title },
     { kind: 'narration', text: description },
-  ])
+  ]
+  const result = narrate(next, arrivalLines)
+
+  // Trigger any encounter waiting in this room.
+  const triggered = maybeTriggerEncounter(result.state, world)
+  if (triggered) {
+    return { state: triggered.state, appended: [...arrivalLines, ...triggered.appended] }
+  }
+  return result
 }
 
 function handleLook(state: GameState, world: World): DispatchResult {
