@@ -24,6 +24,7 @@ export type ParsedCommand =
   | { kind: 'verb-only'; verb: Verb | 'look' | 'inventory' | 'wait' }
   | { kind: 'verb-target'; verb: Verb; target: NounRef }
   | { kind: 'verb-target-prep'; verb: Verb; target: NounRef; preposition: string; indirect: NounRef }
+  | { kind: 'ambiguous'; verb: Verb; rawNoun: string; candidates: string[] }
   | { kind: 'go'; direction: Direction }
   | { kind: 'meta'; verb: MetaVerb }
   | { kind: 'disambiguation'; chosen: string }

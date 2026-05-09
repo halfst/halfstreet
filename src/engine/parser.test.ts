@@ -158,7 +158,7 @@ describe('parser — verb + target', () => {
 })
 
 describe('parser — disambiguation', () => {
-  it('returns disambiguation request when two candidates match', () => {
+  it('returns ambiguous when two candidates match', () => {
     const ctx: ParserContext = {
       knownItems: ['brass-key', 'iron-key'],
       knownEncounters: [],
@@ -171,12 +171,11 @@ describe('parser — disambiguation', () => {
       awaitingDisambiguation: null,
     }
     const result = parse('take key', ctx)
-    expect(result.kind).toBe('unknown')
-    if (result.kind === 'unknown') {
-      // Parser flags ambiguity by returning unknown-noun; the dispatcher
-      // turns this into a PendingDisambiguation. (Keeping parser pure: it
-      // signals; the dispatcher decides UI flow.)
-      expect(result.reason).toBe('unknown-noun')
+    expect(result.kind).toBe('ambiguous')
+    if (result.kind === 'ambiguous') {
+      expect(result.verb).toBe('take')
+      expect(result.rawNoun).toBe('key')
+      expect(result.candidates).toEqual(['brass-key', 'iron-key'])
     }
   })
 
@@ -266,5 +265,35 @@ describe('stop-word stripping', () => {
     // the head of the noun phrase, not anywhere in the middle.
     const cmd = parse('take oil lamp', ctx)
     expect(cmd.kind).toBe('verb-target')
+  })
+})
+
+describe('ambiguous noun', () => {
+  const ctx: ParserContext = {
+    knownItems: ['iron-key', 'brass-key'],
+    knownEncounters: [],
+    visibleNouns: [
+      { id: 'iron-key', aliases: ['key', 'iron key'] },
+      { id: 'brass-key', aliases: ['key', 'brass key'] },
+    ],
+    inventoryItemIds: [],
+    lastNoun: null,
+    awaitingDisambiguation: null,
+  }
+
+  it('returns ambiguous when two aliases match the same noun phrase', () => {
+    const cmd = parse('take key', ctx)
+    expect(cmd).toEqual({
+      kind: 'ambiguous',
+      verb: 'take',
+      rawNoun: 'key',
+      candidates: ['iron-key', 'brass-key'],
+    })
+  })
+
+  it('still returns verb-target when the phrase is unambiguous', () => {
+    const cmd = parse('take iron key', ctx)
+    expect(cmd.kind).toBe('verb-target')
+    if (cmd.kind === 'verb-target') expect(cmd.target.canonical).toBe('iron-key')
   })
 })

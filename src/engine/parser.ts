@@ -173,11 +173,16 @@ export function parse(rawInput: string, ctx: ParserContext): ParsedCommand {
     return { kind: 'unknown', raw: trimmed, reason: 'unknown-noun' }
   }
 
-  // Multiple candidates → ambiguous. Parser signals; the dispatcher records the
-  // PendingDisambiguation in state so the next turn's input is interpreted as
-  // a disambiguation reply.
+  // Multiple candidates → ambiguous. Dedupe by id; if only one distinct id
+  // remains, two aliases of the same item matched — not truly ambiguous.
   if (candidates.length > 1) {
-    return { kind: 'unknown', raw: trimmed, reason: 'unknown-noun' }
+    const uniqueIds = [...new Set(candidates.map((c) => c.id))]
+    if (uniqueIds.length === 1) {
+      // Two aliases of the same item — not actually ambiguous.
+      const id = uniqueIds[0]!
+      return { kind: 'verb-target', verb, target: { canonical: id, raw: candidates[0]!.alias } }
+    }
+    return { kind: 'ambiguous', verb, rawNoun: targetRaw, candidates: uniqueIds }
   }
 
   const target = candidates[0]!
