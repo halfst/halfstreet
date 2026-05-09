@@ -51,12 +51,31 @@ const endings: World['endings'] = {
   wrong: { whenFlags: {}, narration: '' },
   bad: { whenFlags: {}, narration: '' },
 }
+const seenEndings = new Set<string>()
 for (const [path, raw] of Object.entries(endingFiles)) {
   const { id, ending } = parseEnding(raw, path)
   endings[id] = ending
+  seenEndings.add(id)
+}
+const requiredEndings = ['true', 'wrong', 'bad'] as const
+for (const id of requiredEndings) {
+  if (!seenEndings.has(id)) {
+    throw new Error(`endings/${id}.md is missing — every ending id must have a markdown file.`)
+  }
 }
 
 // Cross-reference validation.
+// Build set of all known flag names from encounter setFlags and ending whenFlags.
+const knownFlags = new Set<string>()
+for (const enc of Object.values(encounters)) {
+  if (enc.onResolved?.setFlags) {
+    for (const flagName of Object.keys(enc.onResolved.setFlags)) knownFlags.add(flagName)
+  }
+}
+for (const ending of Object.values(endings)) {
+  for (const flagName of Object.keys(ending.whenFlags)) knownFlags.add(flagName)
+}
+
 for (const room of Object.values(rooms)) {
   for (const [dir, dest] of Object.entries(room.exits)) {
     if (!rooms[dest!]) {
@@ -70,6 +89,20 @@ for (const room of Object.values(rooms)) {
   }
   if (room.encounter && !encounters[room.encounter]) {
     throw new Error(`rooms/${room.id}.md: encounter "${room.encounter}" is not defined`)
+  }
+  if (room.lockedExits) {
+    for (const [dir, lock] of Object.entries(room.lockedExits)) {
+      const isItem = items[lock.requires] !== undefined
+      const isFlag = knownFlags.has(lock.requires)
+      if (!isItem && !isFlag) {
+        const knownItemList = Object.keys(items).join(', ') || '(none)'
+        const knownFlagList = [...knownFlags].join(', ') || '(none)'
+        throw new Error(
+          `rooms/${room.id}.md: exit${dir.toUpperCase()}Requires "${lock.requires}" matches no known item or flag. ` +
+          `Known items: ${knownItemList}. Known flags: ${knownFlagList}.`,
+        )
+      }
+    }
   }
 }
 

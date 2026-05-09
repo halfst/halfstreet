@@ -40,13 +40,26 @@ function stripWikilink(value: unknown): unknown {
 
 function splitSections(body: string): Record<string, string> {
   const sections: Record<string, string> = {}
-  // Section names use only [A-Za-z0-9_-]; headers with spaces or dots are silently skipped.
+  // First pass: detect ANY ## line that doesn't match the strict pattern.
+  // Section names use only [a-zA-Z0-9_-]; headers with spaces or other characters
+  // would silently fail without this check.
+  const looseHeader = /^##[ \t]+(.+?)[ \t]*$/gm
+  const strictHeader = /^([\w-]+)$/
+  for (const m of body.matchAll(looseHeader)) {
+    const headerText = m[1]!
+    if (!strictHeader.test(headerText)) {
+      throw new Error(
+        `invalid section header "## ${headerText}": section names must contain only letters, digits, hyphens, and underscores`,
+      )
+    }
+  }
+  // Second pass: extract sections (re-runs strict regex; same result as before).
   const re = /^##\s+([\w-]+)\s*$/gm
   const matches = [...body.matchAll(re)]
   for (let i = 0; i < matches.length; i++) {
     const m = matches[i]!
     const key = m[1]!
-    const start = m.index! + m[0]!.length
+    const start = m.index! + m[0].length
     const end = i + 1 < matches.length ? matches[i + 1]!.index! : body.length
     sections[key] = body.slice(start, end).trim()
   }

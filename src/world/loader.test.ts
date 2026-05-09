@@ -310,3 +310,55 @@ describe('narration registry', () => {
     expect(() => narration('ghost', 'whatever')).toThrow(/unknown encounter id "ghost"/i)
   })
 })
+
+describe('parseRoom invalid headers', () => {
+  it('throws a clear error when a header has spaces', () => {
+    const md = `---
+id: r
+title: "[ R ]"
+exitN: null
+exitS: null
+exitE: null
+exitW: null
+exitU: null
+exitD: null
+items: []
+---
+
+## first visit
+This is the first visit.
+## revisit
+.
+## examined
+.
+`
+    expect(() => parseRoom(md, 'rooms/r.md')).toThrow(
+      /invalid section header "## first visit".*letters, digits, hyphens/,
+    )
+  })
+
+  it('throws a clear error when a header has dots', () => {
+    const md = `---
+id: r
+title: "[ R ]"
+exitN: null
+exitS: null
+exitE: null
+exitW: null
+exitU: null
+exitD: null
+items: []
+---
+
+## v2.0
+.
+## first-visit
+.
+## revisit
+.
+## examined
+.
+`
+    expect(() => parseRoom(md, 'rooms/r.md')).toThrow(/invalid section header "## v2\.0"/)
+  })
+})
