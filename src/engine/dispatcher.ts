@@ -55,6 +55,34 @@ function setRoomFlag(state: GameState, roomId: string, key: string, value: strin
   }
 }
 
+const ENDING_PRIORITY: ('true' | 'wrong' | 'bad')[] = ['true', 'wrong', 'bad']
+
+function evaluateEndings(state: GameState, world: World): GameState | null {
+  if (state.endedWith) return null
+  for (const id of ENDING_PRIORITY) {
+    const ending = world.endings[id]
+    const flags = ending.whenFlags
+    let allMatch = true
+    for (const [k, v] of Object.entries(flags)) {
+      if (state.flags[k] !== v) { allMatch = false; break }
+    }
+    if (!allMatch) continue
+    return {
+      ...state,
+      endedWith: id,
+      transcript: [...state.transcript, { kind: 'ending', text: ending.narration }],
+    }
+  }
+  return null
+}
+
+function withEndingCheck(result: DispatchResult, world: World): DispatchResult {
+  const updated = evaluateEndings(result.state, world)
+  if (!updated) return result
+  const endingLine: TranscriptLine = updated.transcript[updated.transcript.length - 1]!
+  return { state: updated, appended: [...result.appended, endingLine] }
+}
+
 export function dispatch(state: GameState, command: ParsedCommand, world: World): DispatchResult {
   // Disambiguation reply: re-issue the original verb with the chosen target.
   if (command.kind === 'disambiguation') {
@@ -70,6 +98,11 @@ export function dispatch(state: GameState, command: ParsedCommand, world: World)
     )
   }
 
+  // Once the game has ended, only restart/undo (handled by the UI) can clear state.
+  if (state.endedWith) {
+    return narrate(state, [{ kind: 'narration', text: 'The story has ended. Type `restart` or `undo`.' }])
+  }
+
   if (command.kind === 'unknown') {
     const text =
       command.reason === 'unknown-verb' ? 'You consider the words, but they don\'t fit this place.'
@@ -83,7 +116,7 @@ export function dispatch(state: GameState, command: ParsedCommand, world: World)
   }
 
   if (command.kind === 'go') {
-    return handleGo(state, command.direction, world)
+    return withEndingCheck(handleGo(state, command.direction, world), world)
   }
 
   if (command.kind === 'ambiguous') {
@@ -101,9 +134,9 @@ export function dispatch(state: GameState, command: ParsedCommand, world: World)
   }
 
   if (command.kind === 'verb-only') {
-    if (command.verb === 'look') return handleLook(state, world)
-    if (command.verb === 'inventory') return handleInventory(state, world)
-    if (command.verb === 'wait') return narrate(state, [{ kind: 'narration', text: 'Time passes.' }])
+    if (command.verb === 'look') return withEndingCheck(handleLook(state, world), world)
+    if (command.verb === 'inventory') return withEndingCheck(handleInventory(state, world), world)
+    if (command.verb === 'wait') return withEndingCheck(narrate(state, [{ kind: 'narration', text: 'Time passes.' }]), world)
   }
 
   if (command.kind === 'verb-target') {
@@ -111,16 +144,16 @@ export function dispatch(state: GameState, command: ParsedCommand, world: World)
     // Try the active encounter first — it may consume verbs like 'attack', 'hold'.
     const encResult = applyVerbToEncounter(stateWithNoun, command, world)
     if (encResult?.consumed) {
-      return { state: encResult.state, appended: encResult.lines }
+      return withEndingCheck({ state: encResult.state, appended: encResult.lines }, world)
     }
-    if (command.verb === 'take') return handleTake(stateWithNoun, command.target.canonical, world)
-    if (command.verb === 'drop') return handleDrop(stateWithNoun, command.target.canonical, world)
-    if (command.verb === 'examine' || command.verb === 'look') return handleExamine(stateWithNoun, command.target.canonical, world)
-    if (command.verb === 'read') return handleRead(stateWithNoun, command.target.canonical, world)
-    if (command.verb === 'light') return handleLight(stateWithNoun, command.target.canonical, null, world)
-    if (command.verb === 'extinguish') return handleExtinguish(stateWithNoun, command.target.canonical, world)
-    if (command.verb === 'use') return narrate(stateWithNoun, [{ kind: 'narration', text: "You can't think how to use that here." }])
-    return narrate(stateWithNoun, [{ kind: 'narration', text: `You're not sure how to ${command.verb} that.` }])
+    if (command.verb === 'take') return withEndingCheck(handleTake(stateWithNoun, command.target.canonical, world), world)
+    if (command.verb === 'drop') return withEndingCheck(handleDrop(stateWithNoun, command.target.canonical, world), world)
+    if (command.verb === 'examine' || command.verb === 'look') return withEndingCheck(handleExamine(stateWithNoun, command.target.canonical, world), world)
+    if (command.verb === 'read') return withEndingCheck(handleRead(stateWithNoun, command.target.canonical, world), world)
+    if (command.verb === 'light') return withEndingCheck(handleLight(stateWithNoun, command.target.canonical, null, world), world)
+    if (command.verb === 'extinguish') return withEndingCheck(handleExtinguish(stateWithNoun, command.target.canonical, world), world)
+    if (command.verb === 'use') return withEndingCheck(narrate(stateWithNoun, [{ kind: 'narration', text: "You can't think how to use that here." }]), world)
+    return withEndingCheck(narrate(stateWithNoun, [{ kind: 'narration', text: `You're not sure how to ${command.verb} that.` }]), world)
   }
 
   if (command.kind === 'verb-target-prep') {
@@ -128,15 +161,15 @@ export function dispatch(state: GameState, command: ParsedCommand, world: World)
     // Try the encounter first — it may consume verbs like 'cut vines with shears'.
     const encResult = applyVerbToEncounter(stateWithNoun, command, world)
     if (encResult?.consumed) {
-      return { state: encResult.state, appended: encResult.lines }
+      return withEndingCheck({ state: encResult.state, appended: encResult.lines }, world)
     }
     if (command.verb === 'light' && command.preposition === 'with') {
-      return handleLight(stateWithNoun, command.target.canonical, command.indirect.canonical, world)
+      return withEndingCheck(handleLight(stateWithNoun, command.target.canonical, command.indirect.canonical, world), world)
     }
     if (command.verb === 'use') {
-      return narrate(stateWithNoun, [{ kind: 'narration', text: "You can't think how to use that here." }])
+      return withEndingCheck(narrate(stateWithNoun, [{ kind: 'narration', text: "You can't think how to use that here." }]), world)
     }
-    return narrate(stateWithNoun, [{ kind: 'narration', text: `You're not sure how to ${command.verb} that.` }])
+    return withEndingCheck(narrate(stateWithNoun, [{ kind: 'narration', text: `You're not sure how to ${command.verb} that.` }]), world)
   }
 
   return narrate(state, [{ kind: 'narration', text: 'Nothing happens.' }])

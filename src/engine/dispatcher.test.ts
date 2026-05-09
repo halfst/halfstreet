@@ -122,7 +122,7 @@ describe('locked exits', () => {
         'rusted-key': { id: 'rusted-key', names: ['rusted key', 'key'], short: 'a rusted key', long: '.', initialState: {}, takeable: true },
       },
       encounters: {},
-      endings: { true: { whenFlags: {}, narration: '' }, wrong: { whenFlags: {}, narration: '' }, bad: { whenFlags: {}, narration: '' } },
+      endings: { true: { whenFlags: { _never: true }, narration: '' }, wrong: { whenFlags: { _never: true }, narration: '' }, bad: { whenFlags: { _never: true }, narration: '' } },
     }
   }
 
@@ -225,9 +225,9 @@ describe('ambiguous → disambiguation flow', () => {
       },
       encounters: {},
       endings: {
-        true: { whenFlags: {}, narration: '' },
-        wrong: { whenFlags: {}, narration: '' },
-        bad: { whenFlags: {}, narration: '' },
+        true: { whenFlags: { _never: true }, narration: '' },
+        wrong: { whenFlags: { _never: true }, narration: '' },
+        bad: { whenFlags: { _never: true }, narration: '' },
       },
     }
   }
@@ -271,9 +271,9 @@ function readWorld(): World {
     },
     encounters: {},
     endings: {
-      true: { whenFlags: {}, narration: '' },
-      wrong: { whenFlags: {}, narration: '' },
-      bad: { whenFlags: {}, narration: '' },
+      true: { whenFlags: { _never: true }, narration: '' },
+      wrong: { whenFlags: { _never: true }, narration: '' },
+      bad: { whenFlags: { _never: true }, narration: '' },
     },
   }
 }
@@ -312,7 +312,7 @@ describe('light/extinguish verbs (implicit lighter)', () => {
         rock: { id: 'rock', names: ['rock'], short: 'a rock', long: '.', initialState: {}, takeable: true },
       },
       encounters: {},
-      endings: { true: { whenFlags: {}, narration: '' }, wrong: { whenFlags: {}, narration: '' }, bad: { whenFlags: {}, narration: '' } },
+      endings: { true: { whenFlags: { _never: true }, narration: '' }, wrong: { whenFlags: { _never: true }, narration: '' }, bad: { whenFlags: { _never: true }, narration: '' } },
     }
   }
 
@@ -400,7 +400,7 @@ describe('light X with Y (explicit lighter)', () => {
         rock: { id: 'rock', names: ['rock'], short: 'a rock', long: '.', initialState: {}, takeable: true },
       },
       encounters: {},
-      endings: { true: { whenFlags: {}, narration: '' }, wrong: { whenFlags: {}, narration: '' }, bad: { whenFlags: {}, narration: '' } },
+      endings: { true: { whenFlags: { _never: true }, narration: '' }, wrong: { whenFlags: { _never: true }, narration: '' }, bad: { whenFlags: { _never: true }, narration: '' } },
     }
   }
 
@@ -448,7 +448,7 @@ describe('use verb routing', () => {
         rock: { id: 'rock', names: ['rock'], short: 'a rock', long: '.', initialState: {}, takeable: true },
       },
       encounters: {},
-      endings: { true: { whenFlags: {}, narration: '' }, wrong: { whenFlags: {}, narration: '' }, bad: { whenFlags: {}, narration: '' } },
+      endings: { true: { whenFlags: { _never: true }, narration: '' }, wrong: { whenFlags: { _never: true }, narration: '' }, bad: { whenFlags: { _never: true }, narration: '' } },
     }
   }
 
@@ -460,5 +460,73 @@ describe('use verb routing', () => {
       kind: 'verb-target', verb: 'use', target: { canonical: 'rock', raw: 'rock' },
     }, world)
     expect(result.appended.at(-1)?.text).toBe("You can't think how to use that here.")
+  })
+})
+
+describe('ending detection', () => {
+  function makeWorld(): World {
+    return {
+      startingRoom: 'r',
+      startingInventory: [],
+      rooms: {
+        r: {
+          id: 'r',
+          title: '[ R ]',
+          descriptions: { firstVisit: '.', revisit: '.', examined: '.' },
+          exits: { n: 'r2' },
+          items: [],
+        },
+        r2: {
+          id: 'r2',
+          title: '[ R2 ]',
+          descriptions: { firstVisit: '.', revisit: '.', examined: '.' },
+          exits: {},
+          items: [],
+        },
+      },
+      items: {},
+      encounters: {},
+      endings: {
+        true: { whenFlags: { reachedR2: true }, narration: 'You stand at the top of the stair.' },
+        wrong: { whenFlags: {}, narration: 'You disturb what should not be disturbed.' },
+        bad: { whenFlags: { tookPhoto: true }, narration: 'The child in it is you.' },
+      },
+    }
+  }
+
+  it('sets endedWith and emits an ending line when flags match', () => {
+    const world = makeWorld()
+    let state = initialStateFor(world)
+    state = { ...state, flags: { reachedR2: true } }
+    const result = dispatch(state, { kind: 'verb-only', verb: 'wait' }, world)
+    expect(result.state.endedWith).toBe('true')
+    const last = result.appended.at(-1)!
+    expect(last.kind).toBe('ending')
+    expect(last.text).toBe('You stand at the top of the stair.')
+  })
+
+  it('honors priority order: true beats wrong beats bad', () => {
+    const world = makeWorld()
+    let state = initialStateFor(world)
+    state = { ...state, flags: { reachedR2: true } }
+    const result = dispatch(state, { kind: 'verb-only', verb: 'wait' }, world)
+    expect(result.state.endedWith).toBe('true')
+  })
+
+  it('rejects further input once ended', () => {
+    const world = makeWorld()
+    let state = initialStateFor(world)
+    state = { ...state, flags: { reachedR2: true } }
+    const ended = dispatch(state, { kind: 'verb-only', verb: 'wait' }, world).state
+    const result = dispatch(ended, { kind: 'verb-only', verb: 'wait' }, world)
+    expect(result.appended.at(-1)?.text).toBe('The story has ended. Type `restart` or `undo`.')
+    expect(result.state.location).toBe(ended.location)
+  })
+
+  it('does not fire on unknown turns (no state mutation)', () => {
+    const world = makeWorld()
+    const state = initialStateFor(world)
+    const result = dispatch(state, { kind: 'unknown', raw: 'fnord', reason: 'unknown-verb' }, world)
+    expect(result.state.endedWith).toBeNull()
   })
 })

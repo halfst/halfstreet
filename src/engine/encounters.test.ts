@@ -61,9 +61,9 @@ const world: World = {
     },
   },
   endings: {
-    true:  { whenFlags: {}, narration: '' },
-    wrong: { whenFlags: {}, narration: '' },
-    bad:   { whenFlags: {}, narration: '' },
+    true:  { whenFlags: { _never: true }, narration: '' },
+    wrong: { whenFlags: { _never: true }, narration: '' },
+    bad:   { whenFlags: { _never: true }, narration: '' },
   },
 }
 
