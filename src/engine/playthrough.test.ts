@@ -17,7 +17,11 @@ function ctxFor(state: GameState): ParserContext {
     if (item) visibleNouns.push({ id: inst.id, aliases: item.names })
   }
   if (room?.encounter) {
-    visibleNouns.push({ id: room.encounter, aliases: [room.encounter] })
+    const encounter = world.encounters[room.encounter]
+    visibleNouns.push({
+      id: room.encounter,
+      aliases: [room.encounter, room.encounter.replace(/-/g, ' '), ...(encounter?.aliases ?? [])],
+    })
   }
   return {
     knownItems: Object.keys(world.items),
@@ -41,8 +45,8 @@ function play(commands: string[]): GameState {
 describe('playthrough — sample world', () => {
   it('reaches the rat-gone flag via the canonical command sequence', () => {
     const state = play([
-      'take letter',
       'read letter',  // verb is recognized but encounter takes priority elsewhere; here it's a no-op
+      'n',            // gate → foyer
       'n',            // foyer → hallway
       'take lamp',
       'e',            // hallway → cellar-stair (triggers rat encounter)
@@ -55,11 +59,52 @@ describe('playthrough — sample world', () => {
 
   it('handles invalid moves gracefully', () => {
     const state = play([
-      'go up',        // foyer has no up exit
+      'go up',        // gate has no up exit
       'n',
       's',
       'flibbertigibbet',  // unknown verb
     ])
-    expect(state.location).toBe('foyer')
+    expect(state.location).toBe('outside-gate')
+  })
+
+  it('plays through the main-floor slice encounters', () => {
+    const state = play([
+      'n',                 // gate → foyer
+      'n',                 // foyer → hallway
+      'n',                 // hallway → dining-room
+      'close curtains',
+      'take candlestick',
+      'n',                 // dining-room → conservatory
+      'take shears',
+      'cut vines with shears',
+      's',
+      'w',                 // dining-room → hallway
+      'w',                 // hallway → smoking-room
+      'take lighter',
+      'uncover cage',
+      'e',
+      'd',                 // hallway → music-room
+      'play note',
+      'take tiny key',
+      'n',                 // music-room → servants-passage
+      'wait',
+      'e',                 // servants-passage → laundry
+      'wait',
+      'take damp sheet',
+    ])
+
+    expect(state.flags['window-guest.resolved']).toBe(true)
+    expect(state.flags['ivy-figure.resolved']).toBe(true)
+    expect(state.flags['covered-cage.resolved']).toBe(true)
+    expect(state.flags['piano-echo.resolved']).toBe(true)
+    expect(state.flags['breathing-wall.resolved']).toBe(true)
+    expect(state.flags['linen-shape.resolved']).toBe(true)
+    expect(state.inventory.map((i) => i.id)).toEqual(expect.arrayContaining([
+      'candlestick',
+      'pruning-shears',
+      'silver-lighter',
+      'music-box-key',
+      'damp-sheet',
+    ]))
   })
 })

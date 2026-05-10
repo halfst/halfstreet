@@ -81,27 +81,27 @@ You are carrying: a folded letter, a matchbook, and a broken cigarette.
 
 # Existing House Rooms
 
-|id|title|summary|
-|---|---|---|
-|`outside-gate`|[ The Gate ]|The road behind you is gone.|
-|`foyer`|[ Foyer ]|A foyer that doesn't feel welcoming. Beneath the dust is another scent: sweet at first, then medicinal, like crushed almond pits. A hallway runs impossibly far to the north.|
-|`hallway`|[ Hallway ]|A hallway longer than the house should allow.|
-|`parlor`|[ Parlor ]|Chairs arranged for absent company.|
-|`study`|[ Study ]|Books left open at impossible pages.|
-|`stair-up`|[ Upper Stair ]|A stair arriving at the wrong landing.|
-|`bedroom`|[ Bedroom ]|Prepared for another sleeper.|
-|`nursery`|[ Nursery ]|Toys arranged tonight.|
-|`kitchen`|[ Kitchen ]|Something recently warm.|
-|`back-door`|[ Back Door ]|Opens onto the grounds.|
-|`garden`|[ Garden ]|Overgrown and listening.|
-|`well`|[ The Well ]|Dry deeper than it should be.|
-|`well-shaft`|[ Well Shaft ]|Descending below the water line.|
-|`tunnel`|[ Tunnel ]|A tunnel aware of your presence.|
-|`chamber`|[ Antechamber ]|Locked threshold before the vault.|
-|`vault`|[ Vault ]|Holds what was buried at Halfstreet.|
-|`chapel`|[ Chapel ]|Deconsecrated and occupied.|
-|`attic`|[ Attic ]|Reached by a staircase that was not there before.|
-|`cistern`|[ Cistern ]|Beneath the kitchen.|
+| id             | title           | summary                                                                                                                                                                       |
+| -------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `outside-gate` | [ The Gate ]    | The road behind you is gone.                                                                                                                                                  |
+| `foyer`        | [ Foyer ]       | A foyer that doesn't feel welcoming. Beneath the dust is another scent: sweet at first, then medicinal, like crushed almond pits. A hallway runs impossibly far to the north. |
+| `hallway`      | [ Hallway ]     | A hallway longer than the house should allow.                                                                                                                                 |
+| `parlor`       | [ Parlor ]      | Chairs arranged for absent company.                                                                                                                                           |
+| `study`        | [ Study ]       | Books left open at impossible pages.                                                                                                                                          |
+| `stair-up`     | [ Upper Stair ] | A stair arriving at the wrong landing.                                                                                                                                        |
+| `bedroom`      | [ Bedroom ]     | Prepared for another sleeper.                                                                                                                                                 |
+| `nursery`      | [ Nursery ]     | Toys arranged tonight.                                                                                                                                                        |
+| `kitchen`      | [ Kitchen ]     | Something recently warm.                                                                                                                                                      |
+| `back-door`    | [ Back Door ]   | Opens onto the grounds.                                                                                                                                                       |
+| `garden`       | [ Garden ]      | Overgrown and listening.                                                                                                                                                      |
+| `well`         | [ The Well ]    | Dry deeper than it should be.                                                                                                                                                 |
+| `well-shaft`   | [ Well Shaft ]  | Descending below the water line.                                                                                                                                              |
+| `tunnel`       | [ Tunnel ]      | A tunnel aware of your presence.                                                                                                                                              |
+| `chamber`      | [ Antechamber ] | Locked threshold before the vault.                                                                                                                                            |
+| `vault`        | [ Vault ]       | Holds what was buried at Halfstreet.                                                                                                                                          |
+| `chapel`       | [ Chapel ]      | Deconsecrated and occupied.                                                                                                                                                   |
+| `attic`        | [ Attic ]       | Reached by a staircase that was not there before.                                                                                                                             |
+| `cistern`      | [ Cistern ]     | Beneath the kitchen.                                                                                                                                                          |
 
 ---
 
@@ -158,11 +158,11 @@ Themes reinforced by the new rooms:
 
 These rooms appear only after certain flags are set.
 
-|id|title|first-visit summary|exits|items|encounter|safe|
-|---|---|---|---|---|---|---|
-|`wrong-hallway`|[ Hallway ]|The hallway is longer now.|impossible-changing exits|—|distant-steps|—|
-|`returned-nursery`|[ Nursery ]|The toys no longer appear arranged.|w: bedroom|—|—|yes|
-|`rain-room`|[ Rain Room ]|Rain falls steadily inside the room and nowhere else.|unknown|rusted-key|rainwater-basin|—|
+| id                 | title         | first-visit summary                                   | exits                     | items      | encounter       | safe |
+| ------------------ | ------------- | ----------------------------------------------------- | ------------------------- | ---------- | --------------- | ---- |
+| `wrong-hallway`    | [ Hallway ]   | The hallway is longer now.                            | impossible-changing exits | —          | distant-steps   | —    |
+| `returned-nursery` | [ Nursery ]   | The toys no longer appear arranged.                   | w: bedroom                | —          | —               | yes  |
+| `rain-room`        | [ Rain Room ] | Rain falls steadily inside the room and nowhere else. | unknown                   | rusted-key | rainwater-basin | —    |
 
 ---
 

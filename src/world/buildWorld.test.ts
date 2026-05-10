@@ -2,12 +2,38 @@ import { describe, it, expect } from 'vitest'
 import { world } from './index'
 
 describe('assembled world', () => {
-  it('contains all three rooms', () => {
-    expect(Object.keys(world.rooms).sort()).toEqual(['cellar-stair', 'foyer', 'hallway'])
+  it('contains the authored opening and main-floor rooms', () => {
+    expect(Object.keys(world.rooms)).toEqual(expect.arrayContaining([
+      'outside-gate',
+      'foyer',
+      'hallway',
+      'cellar-stair',
+      'parlor',
+      'study',
+      'dining-room',
+      'conservatory',
+      'smoking-room',
+      'music-room',
+      'servants-passage',
+      'laundry',
+    ]))
   })
 
-  it('contains all three items', () => {
-    expect(Object.keys(world.items).sort()).toEqual(['lamp', 'letter', 'matches'])
+  it('contains the authored opening and main-floor items', () => {
+    expect(Object.keys(world.items)).toEqual(expect.arrayContaining([
+      'broken-cigarette',
+      'lamp',
+      'letter',
+      'matches',
+      'candlestick',
+      'pruning-shears',
+      'silver-lighter',
+      'music-box-key',
+      'damp-sheet',
+      'grandfather-clock',
+      'dinner-place-setting',
+      'covered-cage',
+    ]))
   })
 
   it('all room exits resolve to known rooms', () => {

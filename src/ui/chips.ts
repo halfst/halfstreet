@@ -68,6 +68,7 @@ export function computeChips(state: GameState, world: World): Chip[] {
   // Persistent meta chips.
   out.push({ kind: 'meta', label: 'LOOK', command: 'look', disabled: false })
   out.push({ kind: 'meta', label: 'INV', command: 'inventory', disabled: false })
+  out.push({ kind: 'meta', label: 'HELP', command: 'help', disabled: false })
 
   return out
 }

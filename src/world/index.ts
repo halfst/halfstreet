@@ -121,8 +121,8 @@ for (const enc of Object.values(encounters)) {
 }
 
 export const world: World = {
-  startingRoom: 'foyer',
-  startingInventory: ['matches'],
+  startingRoom: 'outside-gate',
+  startingInventory: ['letter', 'matches', 'broken-cigarette'],
   rooms,
   items,
   encounters,

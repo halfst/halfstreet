@@ -1,0 +1,31 @@
+formulas:
+  Room: |-
+    file.backlinks
+      .filter(value.asFile().inFolder("rooms"))
+      .map(value.asFile())
+views:
+  - type: cards
+    name: Rooms - Exits
+    filters:
+      and:
+        - file.inFolder("rooms")
+    order:
+      - file.name
+      - exitN
+      - exitS
+      - exitE
+      - exitW
+      - exitU
+      - exitD
+  - type: cards
+    name: Items
+    filters:
+      and:
+        - file.inFolder("items")
+    order:
+      - file.name
+      - short
+      - readable
+      - takeable
+      - names
+      - formula.Room

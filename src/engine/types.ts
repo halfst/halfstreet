@@ -9,7 +9,7 @@ export type Direction = 'n' | 's' | 'e' | 'w' | 'u' | 'd'
 export type Verb =
   | 'go' | 'look' | 'examine' | 'take' | 'drop' | 'use' | 'open' | 'close'
   | 'read' | 'light' | 'extinguish' | 'attack' | 'inventory' | 'wait'
-  | 'hold' | 'push' | 'pull'
+  | 'hold' | 'push' | 'pull' | 'cut' | 'play'
 
 export type MetaVerb = 'restart' | 'undo' | 'hint' | 'save' | 'quit' | 'theme'
 
