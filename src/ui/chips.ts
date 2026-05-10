@@ -69,6 +69,7 @@ export function computeChips(state: GameState, world: World): Chip[] {
   out.push({ kind: 'meta', label: 'LOOK', command: 'look', disabled: false })
   out.push({ kind: 'meta', label: 'INV', command: 'inventory', disabled: false })
   out.push({ kind: 'meta', label: 'USE', command: 'use ', disabled: false })
+  out.push({ kind: 'meta', label: 'WAIT', command: 'wait', disabled: false })
   out.push({ kind: 'meta', label: 'HELP', command: 'help', disabled: false })
 
   return out

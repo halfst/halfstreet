@@ -202,6 +202,29 @@ describe('dispatcher — examine', () => {
     const r = dispatch(s, { kind: 'verb-target', verb: 'examine', target: { canonical: 'torch', raw: 'torch' } }, world)
     expect(r.appended.some((l) => l.text.includes('iron oil lamp'))).toBe(true)
   })
+
+  it('uses live match count when examining matches', () => {
+    const matchWorld: World = {
+      ...world,
+      startingInventory: ['matches'],
+      items: {
+        ...world.items,
+        matches: {
+          id: 'matches',
+          names: ['matches', 'match'],
+          short: 'a matchbook',
+          long: 'A damp matchbook with five matches left inside.',
+          initialState: { uses: 4 },
+          takeable: true,
+          lighter: true,
+          lighterUses: 5,
+        },
+      },
+    }
+    const s = initialStateFor(matchWorld)
+    const r = dispatch(s, { kind: 'verb-target', verb: 'examine', target: { canonical: 'matches', raw: 'matches' } }, matchWorld)
+    expect(r.appended.at(-1)?.text).toBe('A damp matchbook with four matches left inside.')
+  })
 })
 
 describe('dispatcher — inventory', () => {
@@ -369,6 +392,14 @@ describe('light/extinguish verbs (implicit lighter)', () => {
     expect(result.appended.at(-1)?.text).toBe("You can't light that.")
   })
 
+  it('asks what to use a match with instead of lighting the matchbook alone', () => {
+    const world = w()
+    let state = initialStateFor(world)
+    state = { ...state, inventory: [{ id: 'matches', state: { uses: 2 } }] }
+    const result = dispatch(state, { kind: 'verb-target', verb: 'light', target: { canonical: 'matches', raw: 'match' } }, world)
+    expect(result.appended.at(-1)?.text).toBe('Use match with what?')
+  })
+
   it('emits the lighter-empty message when matches reach 0', () => {
     const world = w()
     let state = initialStateFor(world)
@@ -459,6 +490,9 @@ describe('use verb routing', () => {
       rooms: { r: { id: 'r', title: '[ R ]', descriptions: { firstVisit: '.', revisit: '.', examined: '.' }, exits: {}, items: [] } },
       items: {
         rock: { id: 'rock', names: ['rock'], short: 'a rock', long: '.', initialState: {}, takeable: true },
+        matches: { id: 'matches', names: ['matches', 'match'], short: 'a matchbook', long: '.', initialState: { uses: 2 }, takeable: true, lighter: true, lighterUses: 2, lighterEmptyText: 'The book is empty.' },
+        letter: { id: 'letter', names: ['letter'], short: 'a letter', long: '.', initialState: {}, takeable: true, readable: true, readableText: 'Read me.' },
+        'broken-cigarette': { id: 'broken-cigarette', names: ['cigarette', 'broken cigarette'], short: 'a broken cigarette', long: '.', initialState: { lit: false }, takeable: true, lightable: true, litText: 'The end glows once, then steadies. The smoke is bitter.' },
       },
       encounters: {},
       endings: { true: { whenFlags: { _never: true }, narration: '' }, wrong: { whenFlags: { _never: true }, narration: '' }, bad: { whenFlags: { _never: true }, narration: '' } },
@@ -473,6 +507,52 @@ describe('use verb routing', () => {
       kind: 'verb-target', verb: 'use', target: { canonical: 'rock', raw: 'rock' },
     }, world)
     expect(result.appended.at(-1)?.text).toBe("You can't think how to use that here.")
+  })
+
+  it('asks what to use a bare match with', () => {
+    const world = w()
+    let state = initialStateFor(world)
+    state = { ...state, inventory: [{ id: 'matches', state: { uses: 2 } }] }
+    const result = dispatch(state, {
+      kind: 'verb-target', verb: 'use', target: { canonical: 'matches', raw: 'match' },
+    }, world)
+    expect(result.appended.at(-1)?.text).toBe('Use match with what?')
+  })
+
+  it('burns the letter when using a match with it', () => {
+    const world = w()
+    let state = initialStateFor(world)
+    state = { ...state, inventory: [{ id: 'matches', state: { uses: 2 } }, { id: 'letter', state: {} }] }
+    const result = dispatch(state, {
+      kind: 'verb-target-prep', verb: 'use',
+      target: { canonical: 'matches', raw: 'match' },
+      preposition: 'with',
+      indirect: { canonical: 'letter', raw: 'letter' },
+    }, world)
+
+    expect(result.state.inventory.find((i) => i.id === 'letter')).toBeUndefined()
+    expect(result.state.inventory.find((i) => i.id === 'matches')?.state['uses']).toBe(1)
+    expect(result.state.flags['letterBurned']).toBe(true)
+    expect(result.appended.at(-1)?.text).toContain('ash')
+  })
+
+  it('lights a lightable item when using a match with it', () => {
+    const world = w()
+    let state = initialStateFor(world)
+    state = { ...state, inventory: [
+      { id: 'matches', state: { uses: 2 } },
+      { id: 'broken-cigarette', state: { lit: false } },
+    ] }
+    const result = dispatch(state, {
+      kind: 'verb-target-prep', verb: 'use',
+      target: { canonical: 'matches', raw: 'match' },
+      preposition: 'with',
+      indirect: { canonical: 'broken-cigarette', raw: 'cigarette' },
+    }, world)
+
+    expect(result.state.inventory.find((i) => i.id === 'broken-cigarette')?.state['lit']).toBe(true)
+    expect(result.state.inventory.find((i) => i.id === 'matches')?.state['uses']).toBe(1)
+    expect(result.appended.at(-1)?.text).toBe('The end glows once, then steadies. The smoke is bitter.')
   })
 })
 

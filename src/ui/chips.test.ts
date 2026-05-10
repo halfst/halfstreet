@@ -39,12 +39,13 @@ describe('computeChips — sample world', () => {
     expect(chips.find((c) => c.kind === 'encounter' && c.label === 'ATTACK RAT' && c.command === 'attack rat')).toBeTruthy()
   })
 
-  it('always includes LOOK, INV, USE, and HELP', () => {
+  it('always includes LOOK, INV, USE, WAIT, and HELP', () => {
     const s = initialStateFor(world)
     const chips = computeChips(s, world)
     expect(chips.find((c) => c.command === 'look')).toBeTruthy()
     expect(chips.find((c) => c.command === 'inventory')).toBeTruthy()
     expect(chips.find((c) => c.label === 'USE' && c.command === 'use ')).toBeTruthy()
+    expect(chips.find((c) => c.command === 'wait')).toBeTruthy()
     expect(chips.find((c) => c.command === 'help')).toBeTruthy()
   })
 })

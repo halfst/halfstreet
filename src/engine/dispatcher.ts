@@ -165,7 +165,13 @@ export function dispatch(state: GameState, command: ParsedCommand, world: World)
     if (command.verb === 'read') return withEndingCheck(handleRead(stateWithNoun, command.target.canonical, world), world)
     if (command.verb === 'light') return withEndingCheck(handleLight(stateWithNoun, command.target.canonical, null, world), world)
     if (command.verb === 'extinguish') return withEndingCheck(handleExtinguish(stateWithNoun, command.target.canonical, world), world)
-    if (command.verb === 'use') return withEndingCheck(narrate(stateWithNoun, [{ kind: 'narration', text: "You can't think how to use that here." }]), world)
+    if (command.verb === 'use') {
+      const target = world.items[command.target.canonical]
+      if (target?.lighter && !target.lightable) {
+        return withEndingCheck(narrate(stateWithNoun, [{ kind: 'narration', text: 'Use match with what?' }]), world)
+      }
+      return withEndingCheck(narrate(stateWithNoun, [{ kind: 'narration', text: "You can't think how to use that here." }]), world)
+    }
     return withEndingCheck(narrate(stateWithNoun, [{ kind: 'narration', text: `You're not sure how to ${command.verb} that.` }]), world)
   }
 
@@ -180,6 +186,10 @@ export function dispatch(state: GameState, command: ParsedCommand, world: World)
       return withEndingCheck(handleLight(stateWithNoun, command.target.canonical, command.indirect.canonical, world), world)
     }
     if (command.verb === 'use') {
+      const burnResult = handleBurnLetter(stateWithNoun, command.target.canonical, command.indirect.canonical, world)
+      if (burnResult) return withEndingCheck(burnResult, world)
+      const lightResult = handleUseAsLight(stateWithNoun, command.target.canonical, command.indirect.canonical, world)
+      if (lightResult) return withEndingCheck(lightResult, world)
       return withEndingCheck(narrate(stateWithNoun, [{ kind: 'narration', text: "You can't think how to use that here." }]), world)
     }
     return withEndingCheck(narrate(stateWithNoun, [{ kind: 'narration', text: `You're not sure how to ${command.verb} that.` }]), world)
@@ -339,11 +349,25 @@ function handleDrop(state: GameState, itemId: string, _world: World): DispatchRe
 function handleExamine(state: GameState, itemId: string, world: World): DispatchResult {
   const item = world.items[itemId]
   if (!item) return narrate(state, [{ kind: 'narration', text: 'You don\'t see anything like that.' }])
+  const inventoryInst = state.inventory.find((i) => i.id === itemId) ?? null
   const visible =
-    state.inventory.find((i) => i.id === itemId) ||
+    inventoryInst ||
     getItemsInRoom(state, world, state.location).includes(itemId)
   if (!visible) return narrate(state, [{ kind: 'narration', text: 'You don\'t see anything like that.' }])
-  return narrate(state, [{ kind: 'narration', text: item.long }])
+  return narrate(state, [{ kind: 'narration', text: describeItem(itemId, item.long, inventoryInst) }])
+}
+
+function describeItem(itemId: string, longDescription: string, inst: ItemInstance | null): string {
+  if (itemId !== 'matches' || typeof inst?.state['uses'] !== 'number') return longDescription
+  const uses = inst.state['uses']
+  const noun = uses === 1 ? 'match' : 'matches'
+  const count = spellSmallCount(uses)
+  return longDescription.replace(/with \w+ matches? left inside\./i, `with ${count} ${noun} left inside.`)
+}
+
+function spellSmallCount(value: number): string {
+  const words = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten']
+  return words[value] ?? String(value)
 }
 
 function handleRead(state: GameState, itemId: string, world: World): DispatchResult {
@@ -362,6 +386,7 @@ function handleRead(state: GameState, itemId: string, world: World): DispatchRes
 function handleLight(state: GameState, targetId: string, instrumentId: string | null, world: World): DispatchResult {
   const target = world.items[targetId]
   if (!target) return narrate(state, [{ kind: 'narration', text: "You don't see anything like that." }])
+  if (target.lighter && !target.lightable) return narrate(state, [{ kind: 'narration', text: 'Use match with what?' }])
   if (!target.lightable) return narrate(state, [{ kind: 'narration', text: "You can't light that." }])
   const targetInst = state.inventory.find((i) => i.id === targetId) ?? null
   const visibleInRoom = getItemsInRoom(state, world, state.location).includes(targetId)
@@ -415,6 +440,60 @@ function handleLight(state: GameState, targetId: string, instrumentId: string | 
     lines.push({ kind: 'narration', text: lighterDef.lighterEmptyText ?? 'It is spent.' })
   }
   return narrate({ ...state, inventory: newInventory }, lines)
+}
+
+function handleBurnLetter(state: GameState, firstId: string, secondId: string, world: World): DispatchResult | null {
+  const ids = [firstId, secondId]
+  if (!ids.includes('letter') || !ids.includes('matches')) return null
+
+  const matches = state.inventory.find((i) => i.id === 'matches')
+  if (!matches) return narrate(state, [{ kind: 'narration', text: "You don't have a match." }])
+  if (typeof matches.state['uses'] === 'number' && matches.state['uses'] <= 0) {
+    return narrate(state, [{ kind: 'narration', text: 'The matchbook is empty.' }])
+  }
+
+  const letterHeld = state.inventory.some((i) => i.id === 'letter')
+  const letterInRoom = getItemsInRoom(state, world, state.location).includes('letter')
+  if (!letterHeld && !letterInRoom) {
+    return narrate(state, [{ kind: 'narration', text: "You don't see the letter here." }])
+  }
+
+  const newMatchesUses = typeof matches.state['uses'] === 'number' ? matches.state['uses'] - 1 : null
+  let next: GameState = {
+    ...state,
+    inventory: state.inventory
+      .filter((i) => i.id !== 'letter')
+      .map((i) => i.id === 'matches' && newMatchesUses !== null ? { ...i, state: { ...i.state, uses: newMatchesUses } } : i),
+    flags: { ...state.flags, letterBurned: true },
+  }
+
+  if (letterInRoom) {
+    const baseItems = world.rooms[state.location]?.items ?? []
+    const dropped = (next.roomState[state.location]?.['droppedItems'] ?? []) as string[]
+    if (baseItems.includes('letter')) {
+      const taken = (next.roomState[state.location]?.['takenItems'] ?? []) as string[]
+      next = setRoomFlag(next, state.location, 'takenItems', [...new Set([...taken, 'letter'])])
+    }
+    if (dropped.includes('letter')) {
+      next = setRoomFlag(next, state.location, 'droppedItems', dropped.filter((id) => id !== 'letter'))
+    }
+  }
+
+  const lines: TranscriptLine[] = [
+    { kind: 'narration', text: 'The letter catches at one corner. In a few breaths it is ash.' },
+  ]
+  if (newMatchesUses === 0) {
+    lines.push({ kind: 'narration', text: world.items['matches']?.lighterEmptyText ?? 'The matchbook is empty.' })
+  }
+  return narrate(next, lines)
+}
+
+function handleUseAsLight(state: GameState, firstId: string, secondId: string, world: World): DispatchResult | null {
+  const first = world.items[firstId]
+  const second = world.items[secondId]
+  if (first?.lighter && second?.lightable) return handleLight(state, secondId, firstId, world)
+  if (second?.lighter && first?.lightable) return handleLight(state, firstId, secondId, world)
+  return null
 }
 
 function handleExtinguish(state: GameState, targetId: string, world: World): DispatchResult {

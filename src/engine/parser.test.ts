@@ -328,7 +328,7 @@ describe('verb-target-prep with "with"', () => {
     knownEncounters: [],
     visibleNouns: [
       { id: 'lamp', aliases: ['lamp'] },
-      { id: 'matches', aliases: ['matches', 'matchbook'] },
+      { id: 'matches', aliases: ['matches', 'match', 'matchbook'] },
     ],
     inventoryItemIds: ['matches'],
     lastNoun: null,
@@ -343,6 +343,17 @@ describe('verb-target-prep with "with"', () => {
       target: { canonical: 'lamp', raw: 'lamp' },
       preposition: 'with',
       indirect: { canonical: 'matches', raw: 'matches' },
+    })
+  })
+
+  it('parses singular "match" aliases', () => {
+    const cmd = parse('use match with lamp', ctx)
+    expect(cmd).toEqual({
+      kind: 'verb-target-prep',
+      verb: 'use',
+      target: { canonical: 'matches', raw: 'match' },
+      preposition: 'with',
+      indirect: { canonical: 'lamp', raw: 'lamp' },
     })
   })
 
