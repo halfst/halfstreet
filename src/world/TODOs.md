@@ -13,6 +13,16 @@
 - [x] Fix mobile - ascii text art at beginning too big to render
 - [ ] Implement a simple "stealth mechanic", where sometimes it's advantageous to have the light out.
 - [ ] Implement a simple (optional?) minimap in the UI? - Maybe tied to an item? Once you get the map the minimap appears? Can we POC it?
-- [ ] Feature: Ability to retain console history, e.g., scroll through previous commands with up and down arrows.
-- [ ] Feature: Grey italicized "type here..."  text that appears near the terminal if the user doesn't click into the terminal within 30 seconds of entering the game or click the help button. The text disappears once a user clicks in the terminal, or selects a card.
-- [ ] 
+- [x] Feature: Ability to retain console history, e.g., scroll through previous commands with up and down arrows.
+- [x] Feature: Grey italicized "type here..."  text that appears near the terminal if the user doesn't click into the terminal within 30 seconds of entering the game or click the help button. The text disappears once a user clicks in the terminal, or selects a card.
+- [x] Change footer to "Copyright (C) 2026 [Ethan J Lewis](https://ethanjlewis.com) | [GNU 3.0](https://half.st/ejlewis/halfstreet/src/branch/main/LICENSE)| [Source Code](https://half.st/ejlewis/halfstreet)"
+- [x] Wire up favicon
+- [x] Feature: Provide ability to change cursor type. Block, underline, and whatever we have now.
+- [x] Feature: Move cursor selection and screen toggle to option menu. Put the option menu where the screen toggle currently is. Give it a gear icon and let it be a tile.
+- [x] Bug: gear icon too small.
+- [x] Bug: option for cursor should show cursor in terminal when option menu is open.
+- [x] Bug: cursor toggle not affecting the cursor at all.
+- [x] Bug: idle text appearing above the tiles instead of in the terminal line.
+- [x] Feature: / brings focus to terminal
+- [x] Feature: Add "Restart" option to option menu
+- [x] Bug: gear icon is still wayyyyyyy toooo smallllll it needs to be like 4x larger at least.

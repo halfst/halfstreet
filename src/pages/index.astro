@@ -1,5 +1,6 @@
 ---
 import '../ui/crt.css'
+import gearIcon from '../assets/noun-gear-8323296.svg?url'
 ---
 
 <html lang="en">
@@ -9,13 +10,44 @@ import '../ui/crt.css'
     <title>Halfstreet — Ethan J Lewis</title>
     <meta name="description" content="A gothic mystery." />
     <meta name="robots" content="noindex" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon-96x96.png" type="image/png" sizes="96x96" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="theme-color" content="#1a0d00" />
   </head>
   <body>
     <div class="mystery-root" data-mystery-root>
       <div class="mystery-bezel">
-        <div class="mystery-theme-toggle" data-mystery-theme-toggle>
-          <button type="button" data-theme-choice="amber" aria-pressed="true">[B]</button>
-          <button type="button" data-theme-choice="ansi" aria-pressed="false">[C]</button>
+        <div class="mystery-options" data-mystery-options>
+          <button
+            type="button"
+            class="mystery-options-toggle"
+            data-options-toggle
+            aria-label="Options"
+            aria-expanded="false"
+            style={`--gear-icon: url(${gearIcon})`}
+          >
+            <span class="mystery-options-icon" aria-hidden="true"></span>
+          </button>
+          <div class="mystery-options-menu" data-options-menu hidden>
+            <div class="mystery-options-group" aria-label="Screen">
+              <div class="mystery-options-label">Screen</div>
+              <button type="button" data-theme-choice="amber" aria-pressed="true">Amber</button>
+              <button type="button" data-theme-choice="ansi" aria-pressed="false">ANSI</button>
+            </div>
+            <div class="mystery-options-group" aria-label="Cursor">
+              <div class="mystery-options-label">Cursor</div>
+              <button type="button" data-cursor-choice="bar" aria-pressed="true">Bar</button>
+              <button type="button" data-cursor-choice="block" aria-pressed="false">Block</button>
+              <button type="button" data-cursor-choice="underscore" aria-pressed="false">Underline</button>
+            </div>
+            <div class="mystery-options-group" aria-label="Game">
+              <div class="mystery-options-label">Game</div>
+              <button type="button" data-restart-choice>Restart</button>
+            </div>
+          </div>
         </div>
         <div class="mystery-transcript" data-mystery-transcript aria-live="polite" aria-atomic="false"></div>
         <div class="mystery-chips" data-mystery-chips></div>
@@ -30,14 +62,15 @@ import '../ui/crt.css'
             spellcheck="false"
             aria-label="Command input"
           />
+          <span class="mystery-input-display" data-mystery-input-display aria-hidden="true"></span>
         </div>
       </div>
       <footer class="mystery-footer">
-        By <a href="https://ethanjlewis.com">Ethan J Lewis</a>
+        © 2026 <a href="https://ethanjlewis.com">Ethan J Lewis</a>
+        <span aria-hidden="true">|</span>
+        <a href="https://half.st/ejlewis/halfstreet/src/branch/main/LICENSE">GNU 3.0</a>
         <span aria-hidden="true">|</span>
         <a href="https://half.st/ejlewis/halfstreet">Source Code</a>
-        <span aria-hidden="true">|</span>
-        <a href="https://half.st/ejlewis/halfstreet/src/branch/main/LICENSE">GNU General Public License v3.0</a>
       </footer>
     </div>
     <script>
@@ -46,7 +79,14 @@ import '../ui/crt.css'
       const stored = (() => {
         try { return localStorage.getItem('halfstreet:theme:v1') } catch { return null }
       })()
+      const storedCursor = (() => {
+        try { return localStorage.getItem('halfstreet:cursor:v1') } catch { return null }
+      })()
       document.documentElement.setAttribute('data-mystery-theme', stored === 'ansi' ? 'ansi' : 'amber')
+      document.documentElement.setAttribute(
+        'data-mystery-cursor',
+        storedCursor === 'block' || storedCursor === 'underscore' ? storedCursor : 'bar',
+      )
     </script>
     <script>
       import '../ui/terminal.ts'

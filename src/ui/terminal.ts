@@ -10,6 +10,7 @@ import { renderChips } from './chip-render'
 
 const transcriptEl = document.querySelector<HTMLDivElement>('[data-mystery-transcript]')
 const inputEl = document.querySelector<HTMLInputElement>('[data-mystery-input]')
+const inputDisplayEl = document.querySelector<HTMLSpanElement>('[data-mystery-input-display]')
 
 const HELP_TEXT = `You arrive at the address, but you do not remember what has happened. The road behind you is gone...
 
@@ -30,13 +31,17 @@ theme                   change the terminal colors
 
 Most commands are verb first, then the thing: examine gate, take lamp, use key on door.`
 
-if (!transcriptEl || !inputEl) {
+if (!transcriptEl || !inputEl || !inputDisplayEl) {
   console.error('[halfstreet] terminal mount points missing')
 } else {
   const restored = loadState()
   let state: GameState = restored ?? initialStateFor(world)
   let lastState: GameState | null = null   // for one-step undo
   let transientHelpEl: HTMLDivElement | null = null
+  let commandHistory: string[] = []
+  let historyIndex: number | null = null
+  let historyDraft = ''
+  let idleHintTimer: number | null = null
 
   if (!restored) {
     // Fresh state already includes the opening narration in its transcript.
@@ -48,7 +53,9 @@ if (!transcriptEl || !inputEl) {
 
   function refreshChips(): void {
     renderChips(computeChips(state, world), (command) => {
+      clearIdleHint()
       inputEl!.value = command
+      syncCommandLine()
       if (command.endsWith(' ')) {
         inputEl!.focus()
         inputEl!.setSelectionRange(command.length, command.length)
@@ -64,6 +71,12 @@ if (!transcriptEl || !inputEl) {
     // for visual styling instead; the keydown handler enforces the input
     // restriction.
     inputEl!.classList.toggle('ended', state.endedWith !== null)
+  }
+
+  const syncCommandLine = (): void => {
+    const visibleText = inputEl.value || inputEl.placeholder
+    inputDisplayEl.textContent = visibleText
+    inputDisplayEl.dataset['placeholder'] = inputEl.value ? 'false' : inputEl.placeholder ? 'true' : 'false'
   }
 
   const buildParserContext = (s: GameState): ParserContext => {
@@ -110,6 +123,23 @@ if (!transcriptEl || !inputEl) {
     transcriptEl.scrollTop = transcriptEl.scrollHeight
   }
 
+  const clearIdleHint = (): void => {
+    if (idleHintTimer !== null) {
+      window.clearTimeout(idleHintTimer)
+      idleHintTimer = null
+    }
+    inputEl.placeholder = ''
+    syncCommandLine()
+  }
+
+  const scheduleIdleHint = (): void => {
+    clearIdleHint()
+    idleHintTimer = window.setTimeout(() => {
+      inputEl.placeholder = 'type here...'
+      syncCommandLine()
+    }, 30000)
+  }
+
   const clearTransientHelp = (): void => {
     transientHelpEl?.remove()
     transientHelpEl = null
@@ -136,18 +166,58 @@ if (!transcriptEl || !inputEl) {
     renderAll(lines)
   }
 
+  const restart = (): void => {
+    const confirmed = confirm('Restart? Your progress will be lost.')
+    if (!confirmed) {
+      appendLines([{ kind: 'system', text: '(restart cancelled)' }])
+      return
+    }
+    clearSave()
+    state = initialStateFor(world)
+    transcriptEl.innerHTML = ''
+    inputEl.value = ''
+    syncCommandLine()
+    renderAll(state.transcript)
+    saveState(state)
+    refreshChips()
+    syncEndedUI()
+  }
+
   renderAll(state.transcript)
   refreshChips()
   syncEndedUI()
-  inputEl.focus()
+  syncCommandLine()
+  scheduleIdleHint()
 
   inputEl.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      if (commandHistory.length === 0) return
+      e.preventDefault()
+      if (historyIndex === null) {
+        historyDraft = inputEl.value
+        historyIndex = commandHistory.length
+      }
+      if (e.key === 'ArrowUp') {
+        historyIndex = Math.max(0, historyIndex - 1)
+      } else {
+        historyIndex = Math.min(commandHistory.length, historyIndex + 1)
+      }
+      inputEl.value = historyIndex === commandHistory.length ? historyDraft : commandHistory[historyIndex]!
+      inputEl.setSelectionRange(inputEl.value.length, inputEl.value.length)
+      syncCommandLine()
+      return
+    }
     if (e.key !== 'Enter') return
     e.preventDefault()
     const raw = inputEl.value
     inputEl.value = ''
+    syncCommandLine()
     if (!raw.trim()) return
     clearTransientHelp()
+    clearIdleHint()
+    commandHistory = [...commandHistory, raw].slice(-50)
+    historyIndex = null
+    historyDraft = ''
     appendLines([{ kind: 'player', text: raw }])
 
     // Once the game has ended, only restart and undo are allowed.
@@ -162,18 +232,7 @@ if (!transcriptEl || !inputEl) {
     // Engine-level meta-commands handled here so the engine stays pure.
     const trimmed = raw.trim().toLowerCase()
     if (trimmed === 'restart') {
-      const confirmed = confirm('Restart? Your progress will be lost.')
-      if (!confirmed) {
-        appendLines([{ kind: 'system', text: '(restart cancelled)' }])
-        return
-      }
-      clearSave()
-      state = initialStateFor(world)
-      transcriptEl.innerHTML = ''
-      renderAll(state.transcript)
-      saveState(state)
-      refreshChips()
-      syncEndedUI()
+      restart()
       return
     }
     if (trimmed === 'help') {
@@ -220,10 +279,32 @@ if (!transcriptEl || !inputEl) {
     }
   })
 
+  inputEl.addEventListener('input', syncCommandLine)
+  inputEl.addEventListener('focus', clearIdleHint)
+  inputEl.addEventListener('pointerdown', clearIdleHint)
+
+  inputEl.parentElement?.addEventListener('pointerdown', () => {
+    inputEl.focus()
+  })
+
   document.addEventListener('keydown', (e) => {
+    const target = e.target as HTMLElement | null
+    const isEditable =
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      target?.isContentEditable === true
+    if (e.key === '/' && !isEditable) {
+      e.preventDefault()
+      clearIdleHint()
+      inputEl.focus()
+      inputEl.setSelectionRange(inputEl.value.length, inputEl.value.length)
+      return
+    }
     if (e.key === 'Escape') {
       saveState(state)
       window.location.href = '/'
     }
   })
+
+  document.addEventListener('halfstreet-restart', restart)
 }
