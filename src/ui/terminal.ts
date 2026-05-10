@@ -11,12 +11,32 @@ import { renderChips } from './chip-render'
 const transcriptEl = document.querySelector<HTMLDivElement>('[data-mystery-transcript]')
 const inputEl = document.querySelector<HTMLInputElement>('[data-mystery-input]')
 
+const HELP_TEXT = `You arrive at the address, but you do not remember what has happened. The road behind you is gone...
+
+This is a text adventure. Type short commands to act in the house.
+
+Common commands:
+look                    describe the room again
+n, s, e, w, u, d        move by direction
+take lamp               pick something up
+examine letter          inspect something nearby or held
+read letter             read a readable object
+inventory               see what you carry
+light lamp with matches use one thing with another
+wait                    let the room continue
+undo                    step back once
+restart                 begin again
+theme                   change the terminal colors
+
+Most commands are verb first, then the thing: examine gate, take lamp, use key on door.`
+
 if (!transcriptEl || !inputEl) {
   console.error('[halfstreet] terminal mount points missing')
 } else {
   const restored = loadState()
   let state: GameState = restored ?? initialStateFor(world)
   let lastState: GameState | null = null   // for one-step undo
+  let transientHelpEl: HTMLDivElement | null = null
 
   if (!restored) {
     // Fresh state already includes the opening narration in its transcript.
@@ -50,7 +70,11 @@ if (!transcriptEl || !inputEl) {
         if (it) visibleNouns.push({ id, aliases: it.names })
       }
       if (room.encounter && s.encounterState[room.encounter]) {
-        visibleNouns.push({ id: room.encounter, aliases: [room.encounter] })
+        const encounter = world.encounters[room.encounter]
+        visibleNouns.push({
+          id: room.encounter,
+          aliases: [room.encounter, room.encounter.replace(/-/g, ' '), ...(encounter?.aliases ?? [])],
+        })
       }
     }
     for (const inst of s.inventory) {
@@ -78,6 +102,23 @@ if (!transcriptEl || !inputEl) {
     transcriptEl.scrollTop = transcriptEl.scrollHeight
   }
 
+  const clearTransientHelp = (): void => {
+    transientHelpEl?.remove()
+    transientHelpEl = null
+  }
+
+  const renderTransientHelp = (): void => {
+    if (!transcriptEl) return
+    clearTransientHelp()
+    const el = document.createElement('div')
+    el.className = 'system help'
+    el.dataset.transientHelp = 'true'
+    el.textContent = HELP_TEXT
+    transcriptEl.appendChild(el)
+    transientHelpEl = el
+    transcriptEl.scrollTop = transcriptEl.scrollHeight
+  }
+
   // For UI-originated lines (player input, restart/undo/quit messages, error
   // notices). Pushes into state.transcript so they survive reload, then renders.
   // Engine-originated lines (from dispatch) are already in state.transcript;
@@ -98,6 +139,7 @@ if (!transcriptEl || !inputEl) {
     const raw = inputEl.value
     inputEl.value = ''
     if (!raw.trim()) return
+    clearTransientHelp()
     appendLines([{ kind: 'player', text: raw }])
 
     // Once the game has ended, only restart and undo are allowed.
@@ -124,6 +166,10 @@ if (!transcriptEl || !inputEl) {
       saveState(state)
       refreshChips()
       syncEndedUI()
+      return
+    }
+    if (trimmed === 'help') {
+      renderTransientHelp()
       return
     }
     if (trimmed === 'undo') {

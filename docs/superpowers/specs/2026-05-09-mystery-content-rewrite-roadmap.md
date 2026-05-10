@@ -59,7 +59,7 @@ Phase 2 is large enough that I recommend slicing by *region*, not by *kind*. A f
 
 Suggested slices:
 
-1. **Rewrite the existing 3 rooms** in the bible's voice. Foyer, Hallway, Cellar Stair — already wired up, fastest route to "the new tone is on screen." This is the smallest possible PR and de-risks the voice direction before scaling up.
+1. **Rewrite the opening slice** in the bible's voice. The Gate, Foyer, Hallway, Cellar Stair — The Gate is the opening room, and the player should begin there carrying the folded letter, matchbook, and broken cigarette. This is the smallest possible PR and de-risks the voice direction before scaling up.
 2. **Main-floor expansion** — Parlor, Study, Dining Room, Conservatory, Smoking Room, Music Room, Servants' Passage, Laundry. These connect to the existing Hallway. Add the items each room references (candlestick, pruning-shears, silver-lighter, music-box-key, damp-sheet) and their encounters (window-guest, ivy-figure, covered-cage, piano-echo, breathing-wall, linen-shape).
 3. **Upper floor** — Stair, Bedroom, Nursery, Attic. Items: child's drawing, music-box (non-key), toy dog. Encounters: stair-sleeper.
 4. **Garden + grounds** — Back Door, Garden, Well, Well Shaft. Encounter: garden-procession, child-beneath-the-well (verbatim prose in bible).

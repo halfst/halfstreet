@@ -76,6 +76,30 @@ describe('parser — unknown input', () => {
 })
 
 describe('parser — verb + target', () => {
+  it('recognizes slice-two encounter verbs', () => {
+    const ctx: ParserContext = {
+      knownItems: [],
+      knownEncounters: ['piano-echo', 'covered-cage'],
+      visibleNouns: [
+        { id: 'piano-echo', aliases: ['piano', 'note'] },
+        { id: 'covered-cage', aliases: ['cage'] },
+      ],
+      inventoryItemIds: [],
+      lastNoun: null,
+      awaitingDisambiguation: null,
+    }
+    expect(parse('play note', ctx)).toEqual({
+      kind: 'verb-target',
+      verb: 'play',
+      target: { canonical: 'piano-echo', raw: 'note' },
+    })
+    expect(parse('uncover cage', ctx)).toEqual({
+      kind: 'verb-target',
+      verb: 'open',
+      target: { canonical: 'covered-cage', raw: 'cage' },
+    })
+  })
+
   it('resolves a single visible noun', () => {
     const ctx: ParserContext = {
       knownItems: ['torch'],

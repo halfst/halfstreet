@@ -1,0 +1,9 @@
+- [x] Need to add help text when user types "help". This should give them some common commands and explain the concepts behind text adventure games. It should also include an exceprt at the beginning from the opening text.  "You arrive at the address, but you do not remember what has happened. The road behind you is gone...". The help text should disappear after the user types a new prompt (i.e., it's not persistent).
+- [x] Need to add  the tiles from mobile to desktop view.
+- [ ] Enhance tiles with contextual awareness, enabling tiles to appear in rooms when appropriate (e.g. "attack rat").
+- [ ] Create a mechanic that asks "Are you sure?" before taking critical actions like attacking or other game-changing mechanics that might affect the final ending.
+- [ ] Add a tile for USE 
+- [ ] Add contextual awareness and autocomplete. For example a popup that appears above the USE text or when a user types "use". The user is able to autofill the rest of the thing by using the keyboard to toggle through the inv list and tab-complete the option, (or tap on mobile) "e.g. use (matches, light, letter) *on* (lamp)" - the word "on" there being suggested. Suggestions for autocomplete are in italics. This is one modern design element we're going to add.
+- [x] Add a footer with "By [Ethan J Lewis](https://ethanjlewis.com) | [Source Code](https://half.st/ejlewis/halfstreet) | [GNU General Public License v3.0](https://half.st/ejlewis/halfstreet/src/branch/main/LICENSE)"
+- [x] Add "Half Street" as ASCII Art to the intro text.
+- [ ] Add logic to make the last sentence in the examined description conditional. This is where we'll list items in the room. (e.g., "The hallway runs further than the house should be wide. The dust on the floor is undisturbed except where you have walked. *The oil lamp is on the side table.*")

@@ -3,6 +3,14 @@ import type { GameState, ParsedCommand, DispatchResult, ItemInstance, Transcript
 import { SCHEMA_VERSION, TRANSCRIPT_CAP } from './types'
 import { applyVerbToEncounter, maybeTriggerEncounter } from './encounters'
 
+const HALFSTREET_ASCII = String.raw`
+ _   _       _  __     ____  _                 _
+| | | | __ _| |/ _|   / ___|| |_ _ __ ___  ___| |_
+| |_| |/ _\` | | |_    \___ \| __| '__/ _ \/ _ \ __|
+|  _  | (_| | |  _|    ___) | |_| | |  __/  __/ |_
+|_| |_|\__,_|_|_|     |____/ \__|_|  \___|\___|\__|
+`.trim()
+
 export function initialStateFor(world: World): GameState {
   const startingRoom = world.rooms[world.startingRoom]
   if (!startingRoom) throw new Error(`World has invalid startingRoom: ${world.startingRoom}`)
@@ -14,6 +22,7 @@ export function initialStateFor(world: World): GameState {
   })
 
   const opening: TranscriptLine[] = [
+    { kind: 'system', text: HALFSTREET_ASCII },
     { kind: 'system', text: startingRoom.title },
     { kind: 'narration', text: startingRoom.descriptions.firstVisit },
   ]
@@ -134,6 +143,10 @@ export function dispatch(state: GameState, command: ParsedCommand, world: World)
   }
 
   if (command.kind === 'verb-only') {
+    const encResult = applyVerbToEncounter(state, command, world)
+    if (encResult?.consumed) {
+      return withEndingCheck({ state: encResult.state, appended: encResult.lines }, world)
+    }
     if (command.verb === 'look') return withEndingCheck(handleLook(state, world), world)
     if (command.verb === 'inventory') return withEndingCheck(handleInventory(state, world), world)
     if (command.verb === 'wait') return withEndingCheck(narrate(state, [{ kind: 'narration', text: 'Time passes.' }]), world)

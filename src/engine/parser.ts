@@ -32,6 +32,9 @@ const VERB_SYNONYMS: Record<string, Verb> = {
   hold: 'hold', show: 'hold',
   push: 'push', press: 'push',
   pull: 'pull',
+  cut: 'cut', trim: 'cut',
+  play: 'play',
+  uncover: 'open',
   wait: 'wait', z: 'wait',
 }
 

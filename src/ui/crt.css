@@ -46,6 +46,25 @@
   box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.55);
 }
 
+.mystery-footer {
+  position: relative;
+  z-index: 2;
+  padding: 8px 4px 0;
+  color: var(--m-dim);
+  font-size: 11px;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.mystery-footer a {
+  color: var(--m-fg);
+  text-decoration: none;
+}
+
+.mystery-footer span {
+  margin: 0 0.5ch;
+}
+
 .mystery-bezel::before {
   /* scanlines overlay */
   content: '';
@@ -104,6 +123,14 @@
   margin-top: 0.6em;
 }
 
+.mystery-transcript .help {
+  color: var(--m-fg);
+  font-weight: normal;
+  border: 1px var(--m-divider-style) var(--m-dim);
+  padding: 0.75em;
+  margin: 0.75em 0;
+}
+
 .mystery-transcript .player {
   color: var(--m-accent-2);
 }
@@ -140,13 +167,12 @@
 }
 
 .mystery-chips {
-  display: none;
+  display: flex;
   flex-wrap: wrap;
   gap: 4px;
   padding: 6px 0 4px;
   position: relative;
   z-index: 2;
-  border-top: 1px var(--m-divider-style) var(--m-dim);
   margin-top: 8px;
 }
 
@@ -166,10 +192,6 @@
   cursor: not-allowed;
 }
 
-@media (pointer: coarse) {
-  .mystery-chips { display: flex; }
-}
-
 .mystery-transcript .ending {
   margin-top: 2em;
   margin-bottom: 1em;
@@ -177,6 +199,16 @@
   border-top: 1px solid currentColor;
   font-style: italic;
   white-space: pre-wrap;
+}
+
+@media (max-width: 640px) {
+  .mystery-root {
+    padding: 8px;
+  }
+
+  .mystery-bezel {
+    padding: 18px 14px 12px;
+  }
 }
 
 [data-mystery-input].ended {

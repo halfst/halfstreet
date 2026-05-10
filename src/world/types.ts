@@ -80,6 +80,8 @@ export interface EncounterTransition {
 
 export interface EncounterDef {
   id: EncounterId
+  /** Optional parser aliases for the encounter target while it is active. */
+  aliases?: string[]
   startsIn: RoomId
   initialPhase: EncounterPhase
   phases: Record<EncounterPhase, EncounterPhaseDef>

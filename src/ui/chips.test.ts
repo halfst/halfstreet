@@ -14,30 +14,36 @@ describe('computeChips — sample world', () => {
   })
 
   it('adds TAKE chips for visible takeable items', () => {
-    const s = initialStateFor(world)
+    let s = initialStateFor(world)
+    s = dispatch(s, { kind: 'go', direction: 'n' }, world).state
+    s = dispatch(s, { kind: 'go', direction: 'n' }, world).state
     const chips = computeChips(s, world)
-    expect(chips.find((c) => c.kind === 'item' && c.command === 'take letter')).toBeTruthy()
+    expect(chips.find((c) => c.kind === 'item' && c.command === 'take lamp')).toBeTruthy()
   })
 
   it('removes TAKE chip after item is taken', () => {
     let s = initialStateFor(world)
-    s = dispatch(s, { kind: 'verb-target', verb: 'take', target: { canonical: 'letter', raw: 'letter' } }, world).state
+    s = dispatch(s, { kind: 'go', direction: 'n' }, world).state
+    s = dispatch(s, { kind: 'go', direction: 'n' }, world).state
+    s = dispatch(s, { kind: 'verb-target', verb: 'take', target: { canonical: 'lamp', raw: 'lamp' } }, world).state
     const chips = computeChips(s, world)
-    expect(chips.find((c) => c.command === 'take letter')).toBeUndefined()
+    expect(chips.find((c) => c.command === 'take lamp')).toBeUndefined()
   })
 
   it('adds an encounter verb chip when an encounter is active', () => {
     let s = initialStateFor(world)
+    s = dispatch(s, { kind: 'go', direction: 'n' }, world).state
     s = dispatch(s, { kind: 'go', direction: 'n' }, world).state
     s = dispatch(s, { kind: 'go', direction: 'e' }, world).state
     const chips = computeChips(s, world)
     expect(chips.find((c) => c.kind === 'encounter' && c.command.includes('rat'))).toBeTruthy()
   })
 
-  it('always includes LOOK and INV', () => {
+  it('always includes LOOK, INV, and HELP', () => {
     const s = initialStateFor(world)
     const chips = computeChips(s, world)
     expect(chips.find((c) => c.command === 'look')).toBeTruthy()
     expect(chips.find((c) => c.command === 'inventory')).toBeTruthy()
+    expect(chips.find((c) => c.command === 'help')).toBeTruthy()
   })
 })
