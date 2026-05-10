@@ -1,6 +1,6 @@
 import { parse } from '../engine/parser'
 import type { ParserContext } from '../engine/parser'
-import { dispatch, initialStateFor, getItemsInRoom } from '../engine/dispatcher'
+import { dispatch, initialStateFor, getItemsInRoom, getLightStatus, LIGHT_TURNS_MAX } from '../engine/dispatcher'
 import { saveState, loadState, clearSave } from '../engine/save'
 import { world } from '../world'
 import type { GameState, TranscriptLine } from '../engine/types'
@@ -11,6 +11,8 @@ import { renderChips } from './chip-render'
 const transcriptEl = document.querySelector<HTMLDivElement>('[data-mystery-transcript]')
 const inputEl = document.querySelector<HTMLInputElement>('[data-mystery-input]')
 const inputDisplayEl = document.querySelector<HTMLSpanElement>('[data-mystery-input-display]')
+const lightMeterEl = document.querySelector<HTMLDivElement>('[data-mystery-light-meter]')
+const LIGHT_ICON_URL = new URL('../assets/noun-oil-lamp-8301660.svg', import.meta.url).href
 
 const HELP_TEXT = `You arrive at the address, but you do not remember what has happened. The road behind you is gone...
 
@@ -42,6 +44,40 @@ if (!transcriptEl || !inputEl || !inputDisplayEl) {
   let historyIndex: number | null = null
   let historyDraft = ''
   let idleHintTimer: number | null = null
+
+  const syncLightMeter = (): void => {
+    if (!lightMeterEl) return
+    const status = getLightStatus(state, world)
+    lightMeterEl.hidden = !status
+    if (!status) {
+      lightMeterEl.innerHTML = ''
+      lightMeterEl.dataset['lit'] = 'false'
+      lightMeterEl.dataset['turnsLeft'] = '0'
+      return
+    }
+
+    lightMeterEl.innerHTML = ''
+    lightMeterEl.dataset['lit'] = 'true'
+    lightMeterEl.dataset['turnsLeft'] = String(status.turnsLeft)
+
+    const icon = document.createElement('img')
+    icon.className = 'mystery-light-icon'
+    icon.src = LIGHT_ICON_URL
+    icon.alt = ''
+    icon.setAttribute('aria-hidden', 'true')
+    lightMeterEl.appendChild(icon)
+
+    const leds = document.createElement('div')
+    leds.className = 'mystery-light-leds'
+    const turnsLeft = Math.max(0, Math.min(LIGHT_TURNS_MAX, status.turnsLeft))
+    for (let i = 0; i < LIGHT_TURNS_MAX; i++) {
+      const segment = document.createElement('span')
+      segment.className = 'mystery-light-segment'
+      segment.dataset['segmentState'] = i < turnsLeft ? 'lit' : 'dim'
+      leds.appendChild(segment)
+    }
+    lightMeterEl.appendChild(leds)
+  }
 
   if (!restored) {
     // Fresh state already includes the opening narration in its transcript.
@@ -150,11 +186,41 @@ if (!transcriptEl || !inputEl || !inputDisplayEl) {
     clearTransientHelp()
     const el = document.createElement('div')
     el.className = 'system help'
-    el.dataset.transientHelp = 'true'
-    el.textContent = HELP_TEXT
+    el.dataset['transientHelp'] = 'true'
+
+    const close = document.createElement('button')
+    close.type = 'button'
+    close.className = 'mystery-help-close'
+    close.dataset['helpClose'] = 'true'
+    close.setAttribute('aria-label', 'Close help')
+    close.textContent = 'x'
+    close.addEventListener('click', (e) => {
+      e.stopPropagation()
+      clearTransientHelp()
+      return
+    })
+
+    const text = document.createElement('div')
+    text.className = 'mystery-help-body'
+    text.textContent = HELP_TEXT
+    el.append(close, text)
     transcriptEl.appendChild(el)
     transientHelpEl = el
     transcriptEl.scrollTop = transcriptEl.scrollHeight
+  }
+
+  document.addEventListener('pointerdown', (e) => {
+    if (!transientHelpEl) return
+    const target = e.target as Node | null
+    if (target && transientHelpEl.contains(target)) return
+    clearTransientHelp()
+  })
+
+  const hideHelpOnInput = (): void => {
+    if (!transientHelpEl) return
+    window.setTimeout(() => {
+      if (inputEl.value.trim().length > 0) clearTransientHelp()
+    })
   }
 
   // For UI-originated lines (player input, restart/undo/quit messages, error
@@ -180,11 +246,13 @@ if (!transcriptEl || !inputEl || !inputDisplayEl) {
     renderAll(state.transcript)
     saveState(state)
     refreshChips()
+    syncLightMeter()
     syncEndedUI()
   }
 
   renderAll(state.transcript)
   refreshChips()
+  syncLightMeter()
   syncEndedUI()
   syncCommandLine()
   scheduleIdleHint()
@@ -246,6 +314,7 @@ if (!transcriptEl || !inputEl || !inputDisplayEl) {
         appendLines([{ kind: 'system', text: '(undone)' }])
         saveState(state)
         refreshChips()
+        syncLightMeter()
         syncEndedUI()
       } else {
         appendLines([{ kind: 'system', text: 'There is no further back.' }])
@@ -272,6 +341,7 @@ if (!transcriptEl || !inputEl || !inputDisplayEl) {
         document.dispatchEvent(new CustomEvent('halfstreet-toggle-theme'))
       }
       refreshChips()
+      syncLightMeter()
       syncEndedUI()
     } catch (err) {
       console.error('[halfstreet] dispatch error', err)
@@ -301,10 +371,16 @@ if (!transcriptEl || !inputEl || !inputDisplayEl) {
       return
     }
     if (e.key === 'Escape') {
+      if (transientHelpEl) {
+        e.preventDefault()
+        clearTransientHelp()
+        return
+      }
       saveState(state)
       window.location.href = '/'
     }
   })
 
   document.addEventListener('halfstreet-restart', restart)
+  inputEl.addEventListener('input', hideHelpOnInput)
 }

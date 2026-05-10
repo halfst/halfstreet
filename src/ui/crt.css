@@ -229,6 +229,10 @@ body {
   border: 0;
 }
 
+.mystery-transcript > div {
+  max-width: 80ch;
+}
+
 .mystery-transcript .system {
   color: var(--m-accent-1);
   font-weight: bold;
@@ -247,11 +251,40 @@ body {
 }
 
 .mystery-transcript .help {
+  position: relative;
   color: var(--m-fg);
   font-weight: normal;
   border: 1px var(--m-divider-style) var(--m-dim);
   padding: 0.75em;
   margin: 0.75em 0;
+}
+
+.mystery-transcript .help .mystery-help-body {
+  padding-right: 3ch;
+}
+
+.mystery-transcript .help .mystery-help-close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--m-fg);
+  border: 1px solid var(--m-dim);
+  border-radius: 2px;
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.mystery-transcript .help .mystery-help-close:hover,
+.mystery-transcript .help .mystery-help-close:focus-visible {
+  border-color: var(--m-fg);
+  outline: none;
 }
 
 .mystery-transcript .player {
@@ -331,14 +364,71 @@ body {
   50%, 100% { opacity: 0; }
 }
 
+.mystery-controls {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  position: relative;
+  z-index: 2;
+  margin-top: 8px;
+}
+
 .mystery-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
   padding: 6px 0 4px;
-  position: relative;
-  z-index: 2;
-  margin-top: 8px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.mystery-light-meter {
+  flex: 0 0 auto;
+  width: 98px;
+  min-height: 58px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+  color: var(--m-fg);
+  opacity: 0.8;
+}
+
+.mystery-light-meter[data-lit='true'] {
+  color: var(--m-fg);
+  opacity: 1;
+}
+
+.mystery-light-icon {
+  width: 30px;
+  height: 30px;
+  display: block;
+  object-fit: contain;
+  filter: drop-shadow(0 0 2px currentColor);
+}
+
+.mystery-light-leds {
+  width: 100%;
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+}
+
+.mystery-light-segment {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--m-dim);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15) inset;
+  opacity: 0.45;
+}
+
+.mystery-light-segment[data-segment-state='lit'] {
+  background: currentColor;
+  opacity: 1;
+  box-shadow: 0 0 7px currentColor;
 }
 
 .mystery-chip {
@@ -382,6 +472,19 @@ body {
 
   .mystery-chip {
     padding: 4px 7px;
+  }
+
+  .mystery-controls {
+    gap: 10px;
+  }
+
+  .mystery-light-meter {
+    width: 90px;
+  }
+
+  .mystery-light-icon {
+    width: 27px;
+    height: 27px;
   }
 }
 

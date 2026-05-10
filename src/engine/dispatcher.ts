@@ -3,6 +3,15 @@ import type { GameState, ParsedCommand, DispatchResult, ItemInstance, Transcript
 import { SCHEMA_VERSION, TRANSCRIPT_CAP } from './types'
 import { applyVerbToEncounter, maybeTriggerEncounter } from './encounters'
 
+export const LIGHT_TURNS_MAX = 6
+
+export interface LightStatus {
+  itemId: string
+  lit: boolean
+  turnsLeft: number
+  maxTurns: number
+}
+
 const HALFSTREET_ASCII = String.raw`
  _   _       _  __     ____  _                 _
 | | | | __ _| |/ _|   / ___|| |_ _ __ ___  ___| |_
@@ -40,6 +49,22 @@ export function initialStateFor(world: World): GameState {
     transcript: opening,
     endedWith: null,
   }
+}
+
+export function getLightStatus(state: GameState, world: World): LightStatus | null {
+  for (const inst of state.inventory) {
+    const def = world.items[inst.id]
+    if (!def?.lightable) continue
+    if (inst.state['lit'] !== true) continue
+    const turnsLeft = getLightTurnsLeft(inst)
+    return {
+      itemId: inst.id,
+      lit: true,
+      turnsLeft,
+      maxTurns: LIGHT_TURNS_MAX,
+    }
+  }
+  return null
 }
 
 function append(state: GameState, lines: TranscriptLine[]): GameState {
@@ -149,7 +174,7 @@ export function dispatch(state: GameState, command: ParsedCommand, world: World)
     }
     if (command.verb === 'look') return withEndingCheck(handleLook(state, world), world)
     if (command.verb === 'inventory') return withEndingCheck(handleInventory(state, world), world)
-    if (command.verb === 'wait') return withEndingCheck(narrate(state, [{ kind: 'narration', text: 'Time passes.' }]), world)
+    if (command.verb === 'wait') return withEndingCheck(handleWait(state, world), world)
   }
 
   if (command.kind === 'verb-target') {
@@ -247,9 +272,13 @@ function handleGo(state: GameState, direction: 'n' | 's' | 'e' | 'w' | 'u' | 'd'
     if (idx > 0) next = { ...next, resolveLevel: ladder[idx - 1]! }
   }
 
+  const lightTick = advanceLightState(next, 1, world)
+  next = lightTick.state
+
   const arrivalLines: TranscriptLine[] = [
     { kind: 'system', text: destRoom.title },
     { kind: 'narration', text: description },
+    ...lightTick.lines,
   ]
   const result = narrate(next, arrivalLines)
 
@@ -259,6 +288,14 @@ function handleGo(state: GameState, direction: 'n' | 's' | 'e' | 'w' | 'u' | 'd'
     return { state: triggered.state, appended: [...arrivalLines, ...triggered.appended] }
   }
   return result
+}
+
+function handleWait(state: GameState, world: World): DispatchResult {
+  const lightTick = advanceLightState(state, 2, world)
+  return narrate(lightTick.state, [
+    { kind: 'narration', text: 'Time passes.' },
+    ...lightTick.lines,
+  ])
 }
 
 function handleLook(state: GameState, world: World): DispatchResult {
@@ -336,6 +373,11 @@ function handleTake(state: GameState, itemId: string, world: World): DispatchRes
 function handleDrop(state: GameState, itemId: string, _world: World): DispatchResult {
   if (!state.inventory.find((i) => i.id === itemId)) {
     return narrate(state, [{ kind: 'narration', text: 'You don\'t have that.' }])
+  }
+  const itemDef = _world.items[itemId]
+  const itemInst = state.inventory.find((i) => i.id === itemId) ?? null
+  if (itemDef?.lightable && itemInst?.state['lit'] === true) {
+    return narrate(state, [{ kind: 'narration', text: "Extinguish it first." }])
   }
   let next: GameState = {
     ...state,
@@ -431,7 +473,7 @@ function handleLight(state: GameState, targetId: string, instrumentId: string | 
   const lighterUsesField = typeof lighterInst.state['uses'] === 'number' ? lighterInst.state['uses'] : null
   const newLighterUses = lighterUsesField === null ? null : lighterUsesField - 1
   const newInventory = state.inventory.map((i) => {
-    if (i.id === targetInst.id) return { ...i, state: { ...i.state, lit: true } }
+    if (i.id === targetInst.id) return { ...i, state: { ...i.state, lit: true, burn: LIGHT_TURNS_MAX } }
     if (i.id === lighterInst!.id && newLighterUses !== null) return { ...i, state: { ...i.state, uses: newLighterUses } }
     return i
   })
@@ -506,7 +548,36 @@ function handleExtinguish(state: GameState, targetId: string, world: World): Dis
     return narrate(state, [{ kind: 'narration', text: "It isn't lit." }])
   }
   const newInventory = state.inventory.map((i) =>
-    i.id === targetId ? { ...i, state: { ...i.state, lit: false } } : i,
+    i.id === targetId ? { ...i, state: { ...i.state, lit: false, burn: 0 } } : i,
   )
   return narrate({ ...state, inventory: newInventory }, [{ kind: 'narration', text: target.extinguishedText ?? 'The flame dies.' }])
+}
+
+function advanceLightState(state: GameState, cost: number, world: World): { state: GameState; lines: TranscriptLine[] } {
+  if (cost <= 0) return { state, lines: [] }
+
+  let changed = false
+  const lines: TranscriptLine[] = []
+  const inventory = state.inventory.map((inst) => {
+    const def = world.items[inst.id]
+    if (!def?.lightable || inst.state['lit'] !== true) return inst
+
+    const turnsLeft = getLightTurnsLeft(inst)
+    const nextTurns = Math.max(0, turnsLeft - cost)
+    changed = true
+
+    if (nextTurns === 0) {
+      lines.push({ kind: 'narration', text: def.extinguishedText ?? 'The flame dies.' })
+      return { ...inst, state: { ...inst.state, lit: false, burn: 0 } }
+    }
+    return { ...inst, state: { ...inst.state, burn: nextTurns } }
+  })
+
+  return changed ? { state: { ...state, inventory }, lines } : { state, lines }
+}
+
+function getLightTurnsLeft(inst: ItemInstance): number {
+  const turns = inst.state['burn']
+  if (typeof turns === 'number') return Math.max(0, turns)
+  return inst.state['lit'] === true ? LIGHT_TURNS_MAX : 0
 }

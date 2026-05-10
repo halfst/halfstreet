@@ -193,6 +193,21 @@ describe('dispatcher — take and drop', () => {
     const r = dispatch(s, { kind: 'verb-target', verb: 'drop', target: { canonical: 'torch', raw: 'torch' } }, world)
     expect(r.state.inventory.find((i) => i.id === 'torch')).toBeUndefined()
   })
+
+  it('refuses to drop a lit lightable item', () => {
+    const lightWorld: World = {
+      ...world,
+      items: {
+        ...world.items,
+        lamp: { id: 'lamp', names: ['lamp'], short: 'an oil lamp', long: 'An oil lamp.', initialState: { lit: false }, takeable: true, lightable: true },
+      },
+    }
+    let s = initialStateFor(lightWorld)
+    s = { ...s, inventory: [{ id: 'lamp', state: { lit: true, burn: 6 } }] }
+    const r = dispatch(s, { kind: 'verb-target', verb: 'drop', target: { canonical: 'lamp', raw: 'lamp' } }, lightWorld)
+    expect(r.appended.at(-1)?.text).toBe('Extinguish it first.')
+    expect(r.state.inventory.find((i) => i.id === 'lamp')).toBeDefined()
+  })
 })
 
 describe('dispatcher — examine', () => {
@@ -412,6 +427,48 @@ describe('light/extinguish verbs (implicit lighter)', () => {
     const texts = result.appended.map((l) => l.text)
     expect(texts).toContain('The wick catches.')
     expect(texts).toContain('The book is empty.')
+  })
+
+  it('burns two segments on wait and extinguishes on the third wait', () => {
+    const world = w()
+    let state = initialStateFor(world)
+    state = { ...state, inventory: [{ id: 'lamp', state: { lit: true, burn: 6 } }] }
+
+    const first = dispatch(state, { kind: 'verb-only', verb: 'wait' }, world)
+    expect(first.state.inventory.find((i) => i.id === 'lamp')?.state['burn']).toBe(4)
+    expect(first.state.inventory.find((i) => i.id === 'lamp')?.state['lit']).toBe(true)
+
+    const second = dispatch(first.state, { kind: 'verb-only', verb: 'wait' }, world)
+    expect(second.state.inventory.find((i) => i.id === 'lamp')?.state['burn']).toBe(2)
+
+    const third = dispatch(second.state, { kind: 'verb-only', verb: 'wait' }, world)
+    expect(third.state.inventory.find((i) => i.id === 'lamp')?.state['burn']).toBe(0)
+    expect(third.state.inventory.find((i) => i.id === 'lamp')?.state['lit']).toBe(false)
+    expect(third.appended.map((l) => l.text)).toContain('The flame dies.')
+  })
+
+  it('burns one segment on movement', () => {
+    const world = w()
+    const movingWorld: World = {
+      ...world,
+      rooms: {
+        ...world.rooms,
+        r: {
+          id: 'r',
+          title: '[ R ]',
+          descriptions: { firstVisit: '.', revisit: '.', examined: '.' },
+          exits: { n: 'r2' },
+          items: [],
+        },
+        r2: { id: 'r2', title: '[ R2 ]', descriptions: { firstVisit: '.', revisit: '.', examined: '.' }, exits: {}, items: [] },
+      },
+    }
+    let state = initialStateFor(movingWorld)
+    state = { ...state, inventory: [{ id: 'lamp', state: { lit: true, burn: 6 } }] }
+
+    const result = dispatch(state, { kind: 'go', direction: 'n' }, movingWorld)
+    expect(result.state.inventory.find((i) => i.id === 'lamp')?.state['burn']).toBe(5)
+    expect(result.state.location).toBe('r2')
   })
 
   it('extinguishes a lit lamp', () => {

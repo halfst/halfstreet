@@ -51,6 +51,24 @@ describe('assembled world', () => {
     }
   })
 
+  it('hallway prose names every enabled exit', () => {
+    const hallway = world.rooms['hallway']
+    expect(hallway).toBeDefined()
+    if (!hallway) throw new Error('hallway room is missing')
+    expect(hallway.exits).toEqual({
+      n: 'dining-room',
+      s: 'foyer',
+      e: 'cellar-stair',
+      w: 'smoking-room',
+      u: 'parlor',
+      d: 'music-room',
+    })
+    const prose = `${hallway.descriptions.firstVisit}\n${hallway.descriptions.examined}`.toLowerCase()
+    for (const word of ['north', 'south', 'east', 'west', 'up', 'down']) {
+      expect(prose, `hallway prose should mention ${word}`).toContain(word)
+    }
+  })
+
   it('all room item refs resolve to known items', () => {
     for (const room of Object.values(world.rooms)) {
       for (const itemId of room.items) {
