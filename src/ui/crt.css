@@ -137,10 +137,9 @@ body {
 .mystery-options-icon {
   width: 23px;
   height: 23px;
-  background: currentColor;
   display: block;
-  mask: var(--gear-icon) center / contain no-repeat;
-  -webkit-mask: var(--gear-icon) center / contain no-repeat;
+  fill: currentColor;
+  flex: 0 0 auto;
 }
 
 .mystery-options-menu {
@@ -191,6 +190,10 @@ body {
   cursor: pointer;
 }
 
+.mystery-options .mystery-options-toggle {
+  padding: 0;
+}
+
 .mystery-options button[aria-pressed='true'],
 .mystery-options-toggle[aria-expanded='true'] {
   color: var(--m-fg);
@@ -202,7 +205,7 @@ body {
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  scrollbar-color: var(--m-dim) transparent;
+  scrollbar-color: var(--m-dim) var(--m-bg);
   scrollbar-width: thin;
   white-space: pre-wrap;
   word-break: break-word;
@@ -217,11 +220,13 @@ body {
 }
 
 .mystery-transcript::-webkit-scrollbar-track {
-  background: transparent;
+  background: var(--m-bg);
+  border: 0;
 }
 
 .mystery-transcript::-webkit-scrollbar-thumb {
   background: var(--m-dim);
+  border: 0;
 }
 
 .mystery-transcript .system {
@@ -238,6 +243,7 @@ body {
   overflow-wrap: normal;
   font-size: clamp(9px, 2vw, 14px);
   line-height: 1.1;
+  margin-bottom: 0.75em;
 }
 
 .mystery-transcript .help {

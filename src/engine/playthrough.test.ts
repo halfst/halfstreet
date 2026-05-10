@@ -107,4 +107,25 @@ describe('playthrough — sample world', () => {
       'damp-sheet',
     ]))
   })
+
+  it('plays through the upper-floor slice', () => {
+    const state = play([
+      'n',                 // gate → foyer
+      'n',                 // foyer → hallway
+      'u',                 // hallway → parlor
+      'u',                 // parlor → upper stair
+      'wait',
+      'u',                 // upper stair → bedroom
+      'e',                 // bedroom → nursery
+      'read drawing',
+      'take dog',
+      'w',
+      'u',                 // bedroom → attic
+    ])
+
+    expect(state.flags['stair-sleeper.resolved']).toBe(true)
+    expect(state.flags['hallwayShifted']).toBe(true)
+    expect(state.location).toBe('attic')
+    expect(state.inventory.map((i) => i.id)).toContain('toy-dog')
+  })
 })

@@ -5,7 +5,7 @@ exitN: "[[study]]"
 exitS: null
 exitE: null
 exitW: null
-exitU: null
+exitU: "[[stair-up]]"
 exitD: "[[hallway]]"
 items:
   - "[[grandfather-clock]]"
@@ -17,6 +17,8 @@ safe: true
 The parlor has been arranged for company. No chair faces another. Each one waits at a slight angle, as if the guests stood suddenly and left the room in silence.
 
 A stopped clock stands against the north wall. A narrow study opens beyond it. The hallway is below.
+
+A staircase climbs where the corner of the room should be.
 
 ## revisit
 The parlor waits with its empty chairs.

@@ -16,10 +16,14 @@ describe('assembled world', () => {
       'music-room',
       'servants-passage',
       'laundry',
+      'stair-up',
+      'bedroom',
+      'nursery',
+      'attic',
     ]))
   })
 
-  it('contains the authored opening and main-floor items', () => {
+  it('contains the authored opening, main-floor, and upper-floor items', () => {
     expect(Object.keys(world.items)).toEqual(expect.arrayContaining([
       'broken-cigarette',
       'lamp',
@@ -33,6 +37,9 @@ describe('assembled world', () => {
       'grandfather-clock',
       'dinner-place-setting',
       'covered-cage',
+      'childs-drawing',
+      'music-box',
+      'toy-dog',
     ]))
   })
 

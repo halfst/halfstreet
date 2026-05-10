@@ -180,4 +180,26 @@ export const encounters: Record<string, EncounterDef> = {
     onFailed: { narration: narration('linen-shape', 'failed'), retreatTo: 'servants-passage' },
     defaultWrongVerbNarration: narration('linen-shape', 'wrong-verb'),
   },
+  'stair-sleeper': {
+    id: 'stair-sleeper',
+    aliases: ['stair sleeper', 'sleeper', 'figure', 'person', 'body'],
+    startsIn: 'stair-up',
+    initialPhase: 'seated',
+    phases: {
+      seated: {
+        description: narration('stair-sleeper', 'seated'),
+        transitions: [
+          {
+            verb: 'wait',
+            chipLabel: 'WAIT',
+            narration: narration('stair-sleeper', 'wait-resolved'),
+            to: 'resolved',
+          },
+        ],
+      },
+    },
+    onResolved: { setFlags: { hallwayShifted: true } },
+    onFailed: { narration: narration('stair-sleeper', 'failed'), retreatTo: 'parlor' },
+    defaultWrongVerbNarration: narration('stair-sleeper', 'wrong-verb'),
+  },
 }

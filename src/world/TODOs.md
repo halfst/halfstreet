@@ -26,3 +26,10 @@
 - [x] Feature: / brings focus to terminal
 - [x] Feature: Add "Restart" option to option menu
 - [x] Bug: gear icon is still wayyyyyyy toooo smallllll it needs to be like 4x larger at least.
+- [ ] Add a "wait" tile.
+- [ ] Add a mechanic where after the player waits 3 times or moves six times the light goes out and needs to be relit.
+- [ ] Add attack options for most encounters. Rarely this will be a good idea though. 
+- [ ] Add a failure condition for attacking at the wrong time. Make the reasons for the failure condition contextual, for example, when they attack the stair sleeper they might trip on the stair and get injured. 
+- [ ] If the user says "light match" or "light match" the response should be "use match with what?"
+- [ ] If the user says "use match with letter" they should burn the letter.
+- [ ] There should be a lighter in the smoking room that allows unlimited lighting.
