@@ -6,4 +6,4 @@ takeable: true
 initialState: {}
 ---
 
-A sheet still wet from some old washing. It smells of rainwater and closed rooms.
+A sheet still wet from some old washing. It smells of rainwater and closed rooms. It keeps the cold longer than cloth should.

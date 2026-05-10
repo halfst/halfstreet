@@ -7,12 +7,15 @@ import type { GameState, TranscriptLine } from '../engine/types'
 import { TRANSCRIPT_CAP } from '../engine/types'
 import { computeChips } from './chips'
 import { renderChips } from './chip-render'
+import LIGHT_ICON_SVG from '../assets/noun-candle-6409709.svg?raw'
+import { initGlitchTip } from './glitchtip'
 
 const transcriptEl = document.querySelector<HTMLDivElement>('[data-mystery-transcript]')
 const inputEl = document.querySelector<HTMLInputElement>('[data-mystery-input]')
 const inputDisplayEl = document.querySelector<HTMLSpanElement>('[data-mystery-input-display]')
 const lightMeterEl = document.querySelector<HTMLDivElement>('[data-mystery-light-meter]')
-const LIGHT_ICON_URL = new URL('../assets/noun-oil-lamp-8301660.svg', import.meta.url).href
+
+initGlitchTip()
 
 const HELP_TEXT = `You arrive at the address, but you do not remember what has happened. The road behind you is gone...
 
@@ -60,11 +63,10 @@ if (!transcriptEl || !inputEl || !inputDisplayEl) {
     lightMeterEl.dataset['lit'] = 'true'
     lightMeterEl.dataset['turnsLeft'] = String(status.turnsLeft)
 
-    const icon = document.createElement('img')
+    const icon = document.createElement('div')
     icon.className = 'mystery-light-icon'
-    icon.src = LIGHT_ICON_URL
-    icon.alt = ''
     icon.setAttribute('aria-hidden', 'true')
+    icon.innerHTML = LIGHT_ICON_SVG
     lightMeterEl.appendChild(icon)
 
     const leds = document.createElement('div')
@@ -73,7 +75,11 @@ if (!transcriptEl || !inputEl || !inputDisplayEl) {
     for (let i = 0; i < LIGHT_TURNS_MAX; i++) {
       const segment = document.createElement('span')
       segment.className = 'mystery-light-segment'
-      segment.dataset['segmentState'] = i < turnsLeft ? 'lit' : 'dim'
+      const lit = i < turnsLeft
+      segment.dataset['segmentState'] = lit ? 'lit' : 'dim'
+      segment.style.backgroundColor = lit ? 'var(--m-fg)' : 'var(--m-dim)'
+      segment.style.boxShadow = lit ? '0 0 7px var(--m-fg)' : '0 0 0 1px rgba(0, 0, 0, 0.15) inset'
+      segment.style.opacity = lit ? '1' : '0.45'
       leds.appendChild(segment)
     }
     lightMeterEl.appendChild(leds)

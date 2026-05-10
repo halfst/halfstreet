@@ -52,19 +52,22 @@ export function initialStateFor(world: World): GameState {
 }
 
 export function getLightStatus(state: GameState, world: World): LightStatus | null {
+  let fallback: LightStatus | null = null
   for (const inst of state.inventory) {
     const def = world.items[inst.id]
     if (!def?.lightable) continue
-    if (inst.state['lit'] !== true) continue
-    const turnsLeft = getLightTurnsLeft(inst)
-    return {
+    const lit = inst.state['lit'] === true
+    const turnsLeft = lit ? getLightTurnsLeft(inst) : 0
+    const status = {
       itemId: inst.id,
-      lit: true,
+      lit,
       turnsLeft,
       maxTurns: LIGHT_TURNS_MAX,
     }
+    if (lit) return status
+    fallback = fallback ?? status
   }
-  return null
+  return fallback
 }
 
 function append(state: GameState, lines: TranscriptLine[]): GameState {

@@ -13,7 +13,7 @@ You play the waiting note.
 The answer comes at once, nearer than before. A narrow part of the wall settles back into shadow.
 
 ## wrong-verb
-The answering note repeats, patient and exact.
+The answering note repeats, patient and exact. It sounds as if it has not moved at all.
 
 ## failed
 The wrong chord goes through the floorboards. You climb back to the hallway before the echo finishes.

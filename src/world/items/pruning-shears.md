@@ -6,4 +6,4 @@ takeable: true
 initialState: {}
 ---
 
-Iron pruning shears with dark soil in the hinge. The handles are cold through your palm.
+Iron pruning shears with dark soil in the hinge. The handles are cold through your palm. They have been used often enough to remember the shape of branches.

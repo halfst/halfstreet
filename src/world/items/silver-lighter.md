@@ -7,4 +7,4 @@ lighter: true
 initialState: {}
 ---
 
-A silver lighter with a worn crest on one side. It opens with a small reluctant click.
+A silver lighter with a worn crest on one side. It opens with a small reluctant click, then catches as if it had been waiting to be asked.

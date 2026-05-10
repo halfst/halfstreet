@@ -13,7 +13,7 @@ The shears close with a sound like teeth.
 The figure falls apart leaf by leaf. Behind it, the glass is only glass.
 
 ## wrong-verb
-The vines tighten without moving.
+The vines tighten without moving. Their silence feels deliberate.
 
 ## failed
-The ivy catches at your wrists. When you pull free, you are back among the cold plates of the dining room.
+The ivy catches at your wrists. When you pull free, you are back among the cold plates of the dining room, with leaves clinging to your sleeves.

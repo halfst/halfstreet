@@ -15,6 +15,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@sentry/browser": "^10.52.0",
     "astro": "^6.1.9",
     "yaml": "^2.8.4",
     "zod": "^4.4.3"

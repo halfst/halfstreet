@@ -405,8 +405,15 @@ body {
   width: 30px;
   height: 30px;
   display: block;
-  object-fit: contain;
-  filter: drop-shadow(0 0 2px currentColor);
+  color: var(--m-dim);
+  opacity: 0.85;
+}
+
+.mystery-light-icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  fill: currentColor;
 }
 
 .mystery-light-leds {
@@ -429,6 +436,12 @@ body {
   background: currentColor;
   opacity: 1;
   box-shadow: 0 0 7px currentColor;
+}
+
+.mystery-light-meter[data-lit='true'] .mystery-light-icon {
+  color: var(--m-fg);
+  opacity: 1;
+  filter: drop-shadow(0 0 2px currentColor) drop-shadow(0 0 6px currentColor);
 }
 
 .mystery-chip {

@@ -25,7 +25,6 @@
 - [x] If the user says "use match with letter" they should burn the letter.
 - [x] There should be a lighter in the smoking room that allows unlimited lighting.
 - [ ] Create a mechanic that asks "Are you sure?" before taking critical actions like attacking or other game-changing mechanics that might affect the final ending.
-- [ ] Create a new item with a mechanic: whiskey bottle. When the user drinks it they get drunk and are transported to the "drunk rooms" which are a bit of a maze and things get a little topsy-turvy. The player chances to lose an item (returning to its original spot) when they get drunk and wakes up several turns later somewhere else predetermined.
 - [ ] Add lightened descriptions to darkened rooms. About half the rooms should be too dark to see anything (affects ability to move forward, can't see exits or entounters, except for maybe hints at the encounters, like sounds or shapes in the dark) Add frontmatter property to all rooms: (dark: true/false). Make text in darkened rooms a grey color.
 - [ ] Implement a simple "stealth mechanic", where sometimes it's advantageous to have the light out.
 - [ ] Implement a simple (optional?) minimap in the UI? - Maybe tied to an item? Once you get the map the minimap appears? Can we POC it?
@@ -37,3 +36,10 @@
 - [ ] Implement a carry mechanic. Decide whether we should have a limited carry ability (only able to carry a few things?) or we night need a full inventory system, where items are assigned to pockets or hand carry and we can only hand carry a couple of items?
 - [ ] Implement a "drop" mechanic
 - [x] We need a light indicator that shows when the light is lit and how much time is left on the light. Use the svg file I dropped in the src/assets folder for the indicator. The indicator should be a 6-segment led that runs in a dotted line underneath the light indicator and burns out right to left. The color of the indicator should be bright when it's lit and dim when it's not. The indicator should be to the right of the tiles and sized appropriately.
+- [ ] FEATURE: Add an option to disable the chips in the options menu.
+- [ ] BUG: The new cursor doesn't appear on mobile.
+- [ ] FEATURE: Add a Safe to somewhere that it makes sense (the bedroom?) We can add a safe-cracking mini-game. The safe contains a single bullet, which can be used with the revolver. 
+- [ ] FEATURE: Add item Revolver, which can be used to kill the thing at the end. It comes with no bullets, so players need to defeat the safe-cracking minjgame. Place the revolver somewhere it takes the player some effort to find. 
+- [ ] Feature: A faceless voice that speaks in a whisper in the chapel, which demands whiskey and dispenses riddles if the player finds a bottle of whiskey (but hasn't drunk it yet). The riddles are randomly chosen from a list of 25 difficult riddles (source them). If the riddle is answered correctly there needs to be some reward and maybe a major plot point is revealed. 
+- [ ] Add item Whiskey bottle, half full of something smoky. In the kitchen. Drinking it gets the player drunk, which causes them to unlock the drunk rooms, which are a series of rooms where they can go many directions, but somehow end up in seemingly back in the same spot. They are essentially a maze of doors and hallways, ladders and levels. There should be boundaries established though, it shouldn't be endless. After 20 or so moves the player passes out and wakes up back in the foyer, with the whiskey bottle returned to the kitchen, somehow still half full. Add a random encounter in the dark rooms, a creaking floorboard helps you find a secret door that opens with a faceless man inside who gives you major plot info. After this encounter you pass out and wake up in the lobby as before.
+- [ ] 

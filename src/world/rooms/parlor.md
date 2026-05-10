@@ -14,14 +14,14 @@ safe: true
 ---
 
 ## first-visit
-The parlor has been arranged for company. No chair faces another. Each one waits at a slight angle, as if the guests stood suddenly and left the room in silence.
+The parlor has been set for company that never arrives. The chairs are drawn a little too far apart, as if the people meant to speak and then forgot what they had meant to say.
 
-A stopped clock stands against the north wall. A narrow study opens beyond it. The hallway is below.
+A stopped clock stands against the north wall. The study lies beyond it. The hallway is below.
 
-A staircase climbs where the corner of the room should be.
+A staircase rises where the corner should be.
 
 ## revisit
-The parlor waits with its empty chairs.
+The parlor keeps its arrangement.
 
 ## examined
-Dust gathers on the chair arms, but not on the seats. Someone has sat here recently, or the room remembers being occupied. The grandfather clock shows no hour you can name.
+Dust gathers on the chair arms, not on the seats. Something in the room has been touched often. The grandfather clock shows no hour you can name.

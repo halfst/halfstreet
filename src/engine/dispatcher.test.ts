@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { dispatch, initialStateFor } from './dispatcher'
+import { dispatch, getLightStatus, initialStateFor } from './dispatcher'
 import type { World } from '../world/types'
 import type { GameState, ParsedCommand } from './types'
 import { SCHEMA_VERSION } from './types'
@@ -253,6 +253,78 @@ describe('dispatcher — inventory', () => {
     const empty: GameState = { ...initialStateFor(world), inventory: [] }
     const r = dispatch(empty, { kind: 'verb-only', verb: 'inventory' }, world)
     expect(r.appended.some((l) => /empty-handed|carrying nothing/i.test(l.text))).toBe(true)
+  })
+})
+
+describe('light status', () => {
+  it('shows the meter when carrying a lightable item even before it is lit', () => {
+    const lightWorld: World = {
+      ...world,
+      items: {
+        ...world.items,
+        torch: {
+          id: 'torch',
+          names: ['torch', 'lamp'],
+          short: 'an oil lamp',
+          long: 'An iron oil lamp, unlit.',
+          initialState: { lit: false },
+          takeable: true,
+          lightable: true,
+        },
+      },
+    }
+    const state: GameState = {
+      ...initialStateFor(lightWorld),
+      inventory: [{ id: 'torch', state: { lit: false } }],
+    }
+
+    expect(getLightStatus(state, lightWorld)).toEqual({
+      itemId: 'torch',
+      lit: false,
+      turnsLeft: 0,
+      maxTurns: 6,
+    })
+  })
+
+  it('prefers a lit lightable item over an unlit one in inventory order', () => {
+    const lightWorld: World = {
+      ...world,
+      items: {
+        ...world.items,
+        torch: {
+          id: 'torch',
+          names: ['torch', 'lamp'],
+          short: 'an oil lamp',
+          long: 'An iron oil lamp, unlit.',
+          initialState: { lit: false },
+          takeable: true,
+          lightable: true,
+        },
+        candlestick: {
+          id: 'candlestick',
+          names: ['candlestick', 'candle'],
+          short: 'a brass candlestick',
+          long: 'A brass candlestick.',
+          initialState: { lit: false },
+          takeable: true,
+          lightable: true,
+        },
+      },
+    }
+    const state: GameState = {
+      ...initialStateFor(lightWorld),
+      inventory: [
+        { id: 'candlestick', state: { lit: false } },
+        { id: 'torch', state: { lit: true, burn: 6 } },
+      ],
+    }
+
+    expect(getLightStatus(state, lightWorld)).toEqual({
+      itemId: 'torch',
+      lit: true,
+      turnsLeft: 6,
+      maxTurns: 6,
+    })
   })
 })
 

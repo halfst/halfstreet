@@ -9,7 +9,23 @@ steps:
     commands:
       - npm ci
       - npm run test
-      - npm run build
+      - PUBLIC_GLITCHTIP_RELEASE=$CI_PIPELINE_NUMBER npm run build
+
+  - name: upload-sourcemaps
+    image: rust:1
+    environment:
+      SENTRY_URL:
+        from_secret: glitchtip_url
+      SENTRY_AUTH_TOKEN:
+        from_secret: glitchtip_auth_token
+      SENTRY_ORG:
+        from_secret: glitchtip_org
+      SENTRY_PROJECT:
+        from_secret: glitchtip_project
+    commands:
+      - cargo install --locked --git https://gitlab.com/glitchtip/glitchtip-cli.git
+      - glitchtip-cli sourcemaps inject ./dist
+      - glitchtip-cli sourcemaps upload ./dist --release "$CI_PIPELINE_NUMBER"
 
   - name: deploy
     image: node:22
