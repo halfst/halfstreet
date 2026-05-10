@@ -1,3 +1,11 @@
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
 :root[data-mystery-theme='amber'] {
   --m-bg: #1a0d00;
   --m-fg: #ffb000;
@@ -21,6 +29,8 @@
 .mystery-root {
   position: fixed;
   inset: 0;
+  height: 100dvh;
+  min-height: 0;
   background: var(--m-bezel);
   color: var(--m-fg);
   font-family: 'Courier New', 'Cascadia Mono', 'Consolas', monospace;
@@ -36,6 +46,7 @@
 
 .mystery-bezel {
   flex: 1;
+  min-height: 0;
   background: var(--m-bg);
   border-radius: 6px;
   padding: 22px 26px 14px;
@@ -109,9 +120,12 @@
 
 .mystery-transcript {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   white-space: pre-wrap;
   word-break: break-word;
+  overflow-wrap: anywhere;
   position: relative;
   z-index: 2;
   padding-right: 6px;
@@ -121,6 +135,16 @@
   color: var(--m-accent-1);
   font-weight: bold;
   margin-top: 0.6em;
+}
+
+.mystery-transcript .ascii-art {
+  max-width: 100%;
+  overflow-x: auto;
+  white-space: pre;
+  word-break: normal;
+  overflow-wrap: normal;
+  font-size: clamp(9px, 2vw, 14px);
+  line-height: 1.1;
 }
 
 .mystery-transcript .help {
@@ -204,10 +228,19 @@
 @media (max-width: 640px) {
   .mystery-root {
     padding: 8px;
+    font-size: 13px;
   }
 
   .mystery-bezel {
     padding: 18px 14px 12px;
+  }
+
+  .mystery-transcript .ascii-art {
+    font-size: clamp(7px, 2.35vw, 10px);
+  }
+
+  .mystery-chip {
+    padding: 4px 7px;
   }
 }
 

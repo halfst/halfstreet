@@ -68,6 +68,10 @@ export interface EncounterTransition {
   verb: Verb
   /** Required target noun id, or '*' for any target, or undefined for verb-only. */
   target?: ItemId | EncounterId | '*'
+  /** Optional chip label shown by the UI instead of deriving one from ids. */
+  chipLabel?: string
+  /** Optional command injected by the UI chip instead of deriving one from ids. */
+  chipCommand?: string
   /** Required item id in inventory (and optional state predicate). */
   requires?: { item: ItemId; state?: Record<string, string | boolean | number> }
   /** Phase to transition to, or 'resolved' / 'failed'. */

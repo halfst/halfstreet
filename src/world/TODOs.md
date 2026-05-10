@@ -1,9 +1,18 @@
 - [x] Need to add help text when user types "help". This should give them some common commands and explain the concepts behind text adventure games. It should also include an exceprt at the beginning from the opening text.  "You arrive at the address, but you do not remember what has happened. The road behind you is gone...". The help text should disappear after the user types a new prompt (i.e., it's not persistent).
 - [x] Need to add  the tiles from mobile to desktop view.
-- [ ] Enhance tiles with contextual awareness, enabling tiles to appear in rooms when appropriate (e.g. "attack rat").
+- [x] Enhance tiles with contextual awareness, enabling tiles to appear in rooms when appropriate (e.g. "attack rat").
 - [ ] Create a mechanic that asks "Are you sure?" before taking critical actions like attacking or other game-changing mechanics that might affect the final ending.
-- [ ] Add a tile for USE 
+- [x] Add a tile for USE 
 - [ ] Add contextual awareness and autocomplete. For example a popup that appears above the USE text or when a user types "use". The user is able to autofill the rest of the thing by using the keyboard to toggle through the inv list and tab-complete the option, (or tap on mobile) "e.g. use (matches, light, letter) *on* (lamp)" - the word "on" there being suggested. Suggestions for autocomplete are in italics. This is one modern design element we're going to add.
 - [x] Add a footer with "By [Ethan J Lewis](https://ethanjlewis.com) | [Source Code](https://half.st/ejlewis/halfstreet) | [GNU General Public License v3.0](https://half.st/ejlewis/halfstreet/src/branch/main/LICENSE)"
 - [x] Add "Half Street" as ASCII Art to the intro text.
-- [ ] Add logic to make the last sentence in the examined description conditional. This is where we'll list items in the room. (e.g., "The hallway runs further than the house should be wide. The dust on the floor is undisturbed except where you have walked. *The oil lamp is on the side table.*")
+- [x] Add logic to make the last sentence in the examined description conditional. This is where we'll list items in the room. (e.g., "The hallway runs further than the house should be wide. The dust on the floor is undisturbed except where you have walked. *The oil lamp is on the side table.*")
+- [ ] Create a new item with a mechanic: whiskey bottle. When the user drinks it they get drunk and are transported to the "drunk rooms" which are a bit of a maze and things get a little topsy-turvy. The player chances to lose an item (returning to its original spot) when they get drunk and wakes up several turns later somewhere else predetermined.
+- [ ] Add lightened descriptions to darkened rooms. About half the rooms should be too dark to see anything (affects ability to move forward, can't see exits or entounters, except for maybe hints at the encounters, like sounds or shapes in the dark) Add frontmatter property to all rooms: (dark: true/false). Make text in darkened rooms a grey color.
+- [x] Fix mobile - scrolling issue (page grows as the terminal grows).
+- [x] Fix mobile - ascii text art at beginning too big to render
+- [ ] Implement a simple "stealth mechanic", where sometimes it's advantageous to have the light out.
+- [ ] Implement a simple (optional?) minimap in the UI? - Maybe tied to an item? Once you get the map the minimap appears? Can we POC it?
+- [ ] Feature: Ability to retain console history, e.g., scroll through previous commands with up and down arrows.
+- [ ] Feature: Grey italicized "type here..."  text that appears near the terminal if the user doesn't click into the terminal within 30 seconds of entering the game or click the help button. The text disappears once a user clicks in the terminal, or selects a card.
+- [ ] 

@@ -22,4 +22,4 @@ Something answers from elsewhere in the house, too soft to be music. A servants'
 The music room waits on the same note.
 
 ## examined
-The depressed piano key does not rise when touched. A tiny key rests on the music stand where sheet music should be.
+The depressed piano key does not rise when touched. The music stand is empty, but its clips remain open.

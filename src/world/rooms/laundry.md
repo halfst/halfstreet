@@ -22,4 +22,4 @@ The servants' passage is west.
 The laundry hangs white and silent.
 
 ## examined
-Water darkens the floor beneath the hanging sheets, though none of them drip. A damp sheet has fallen into an empty basket.
+Water darkens the floor beneath the hanging sheets, though none of them drip. An empty basket waits below the line.

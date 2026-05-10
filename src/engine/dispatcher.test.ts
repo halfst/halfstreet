@@ -157,6 +157,19 @@ describe('dispatcher — look', () => {
     const r = dispatch(s, { kind: 'verb-only', verb: 'look' }, world)
     expect(r.appended.some((l) => l.text.includes('peeling paper'))).toBe(true)
   })
+
+  it('adds a conditional sentence for items currently in the room', () => {
+    const s = initialStateFor(world)
+    const r = dispatch(s, { kind: 'verb-only', verb: 'look' }, world)
+    expect(r.appended.some((l) => l.text === 'An oil lamp is here.')).toBe(true)
+  })
+
+  it('removes the conditional item sentence once the item is taken', () => {
+    let s = initialStateFor(world)
+    s = dispatch(s, { kind: 'verb-target', verb: 'take', target: { canonical: 'torch', raw: 'torch' } }, world).state
+    const r = dispatch(s, { kind: 'verb-only', verb: 'look' }, world)
+    expect(r.appended.some((l) => l.text === 'An oil lamp is here.')).toBe(false)
+  })
 })
 
 describe('dispatcher — take and drop', () => {

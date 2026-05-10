@@ -22,4 +22,4 @@ A cloth-covered cage hangs from a stand. The hallway is east.
 The smoking room keeps its breath.
 
 ## examined
-Cigar ash lies in a clean saucer. A silver lighter has been placed beside it with care. The covered cage moves once, though the room is still.
+Cigar ash lies in a clean saucer. The cold hearth reflects the chairs in a narrow black curve.

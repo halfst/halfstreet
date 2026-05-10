@@ -49,6 +49,11 @@ if (!transcriptEl || !inputEl) {
   function refreshChips(): void {
     renderChips(computeChips(state, world), (command) => {
       inputEl!.value = command
+      if (command.endsWith(' ')) {
+        inputEl!.focus()
+        inputEl!.setSelectionRange(command.length, command.length)
+        return
+      }
       inputEl!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }))
     })
   }
@@ -96,6 +101,9 @@ if (!transcriptEl || !inputEl) {
     for (const line of lines) {
       const el = document.createElement('div')
       el.className = line.kind
+      if (line.kind === 'system' && line.text.includes('|_| |_|')) {
+        el.classList.add('ascii-art')
+      }
       el.textContent = line.text
       transcriptEl.appendChild(el)
     }

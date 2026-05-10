@@ -22,4 +22,4 @@ The hallway is west. A greenish light presses through glass to the north.
 The dining room holds its place at the table.
 
 ## examined
-The silver has tarnished black at the edges. The untouched plate is clean enough to show a dim shape behind you, though there is no one there. A candlestick rests beside it.
+The silver has tarnished black at the edges. The untouched plate is clean enough to show a dim shape behind you, though there is no one there.

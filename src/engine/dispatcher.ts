@@ -1,5 +1,5 @@
 import type { World } from '../world/types'
-import type { GameState, ParsedCommand, DispatchResult, ItemInstance, TranscriptLine, NounRef } from './types'
+import type { GameState, ParsedCommand, DispatchResult, ItemInstance, TranscriptLine } from './types'
 import { SCHEMA_VERSION, TRANSCRIPT_CAP } from './types'
 import { applyVerbToEncounter, maybeTriggerEncounter } from './encounters'
 
@@ -255,12 +255,29 @@ function handleLook(state: GameState, world: World): DispatchResult {
   const room = world.rooms[state.location]
   if (!room) return narrate(state, [{ kind: 'narration', text: 'You see nothing.' }])
   const items = getItemsInRoom(state, world, state.location)
-  const itemNarration = items.length > 0 ? `You see here: ${items.map((id) => world.items[id]?.short ?? id).join(', ')}.` : ''
+  const itemNarration = describeRoomItems(items.map((id) => world.items[id]?.short ?? id))
   return narrate(state, [
     { kind: 'system', text: room.title },
     { kind: 'narration', text: room.descriptions.examined },
     ...(itemNarration ? [{ kind: 'narration' as const, text: itemNarration }] : []),
   ])
+}
+
+function describeRoomItems(shorts: string[]): string {
+  if (shorts.length === 0) return ''
+  const names = [sentenceCase(shorts[0]!), ...shorts.slice(1)]
+  const verb = names.length === 1 ? 'is' : 'are'
+  return `${joinList(names)} ${verb} here.`
+}
+
+function sentenceCase(value: string): string {
+  return value.length === 0 ? value : value[0]!.toUpperCase() + value.slice(1)
+}
+
+function joinList(values: string[]): string {
+  if (values.length === 1) return values[0]!
+  if (values.length === 2) return `${values[0]} and ${values[1]}`
+  return `${values.slice(0, -1).join(', ')}, and ${values[values.length - 1]}`
 }
 
 function handleInventory(state: GameState, world: World): DispatchResult {
@@ -306,7 +323,7 @@ function handleTake(state: GameState, itemId: string, world: World): DispatchRes
   return narrate(next, [{ kind: 'narration', text: 'Taken.' }])
 }
 
-function handleDrop(state: GameState, itemId: string, world: World): DispatchResult {
+function handleDrop(state: GameState, itemId: string, _world: World): DispatchResult {
   if (!state.inventory.find((i) => i.id === itemId)) {
     return narrate(state, [{ kind: 'narration', text: 'You don\'t have that.' }])
   }

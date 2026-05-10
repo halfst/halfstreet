@@ -13,11 +13,14 @@ export const encounters: Record<string, EncounterDef> = {
           {
             verb: 'attack',
             target: 'rat',
+            chipLabel: 'ATTACK RAT',
+            chipCommand: 'attack rat',
             narration: narration('rat', 'attack-rat-resolved'),
             to: 'resolved',
           },
           {
             verb: 'wait',
+            chipLabel: 'WAIT',
             narration: narration('rat', 'wait-stays'),
             to: 'lurking',
           },
@@ -39,6 +42,8 @@ export const encounters: Record<string, EncounterDef> = {
           {
             verb: 'close',
             target: 'window-guest',
+            chipLabel: 'CLOSE CURTAINS',
+            chipCommand: 'close curtains',
             narration: narration('window-guest', 'close-window-guest-resolved'),
             to: 'resolved',
           },
@@ -61,6 +66,8 @@ export const encounters: Record<string, EncounterDef> = {
           {
             verb: 'cut',
             target: 'ivy-figure',
+            chipLabel: 'CUT VINES',
+            chipCommand: 'cut vines',
             requires: { item: 'pruning-shears' },
             narration: narration('ivy-figure', 'cut-ivy-figure-resolved'),
             to: 'resolved',
@@ -68,6 +75,8 @@ export const encounters: Record<string, EncounterDef> = {
           {
             verb: 'use',
             target: 'ivy-figure',
+            chipLabel: 'USE SHEARS',
+            chipCommand: 'use vines with shears',
             requires: { item: 'pruning-shears' },
             narration: narration('ivy-figure', 'cut-ivy-figure-resolved'),
             to: 'resolved',
@@ -91,6 +100,8 @@ export const encounters: Record<string, EncounterDef> = {
           {
             verb: 'open',
             target: 'covered-cage',
+            chipLabel: 'UNCOVER CAGE',
+            chipCommand: 'uncover cage',
             narration: narration('covered-cage', 'open-covered-cage-resolved'),
             to: 'resolved',
           },
@@ -113,6 +124,8 @@ export const encounters: Record<string, EncounterDef> = {
           {
             verb: 'play',
             target: 'piano-echo',
+            chipLabel: 'PLAY NOTE',
+            chipCommand: 'play note',
             narration: narration('piano-echo', 'play-piano-echo-resolved'),
             to: 'resolved',
           },
@@ -134,6 +147,7 @@ export const encounters: Record<string, EncounterDef> = {
         transitions: [
           {
             verb: 'wait',
+            chipLabel: 'WAIT',
             narration: narration('breathing-wall', 'wait-resolved'),
             to: 'resolved',
           },
@@ -155,6 +169,7 @@ export const encounters: Record<string, EncounterDef> = {
         transitions: [
           {
             verb: 'wait',
+            chipLabel: 'WAIT',
             narration: narration('linen-shape', 'wait-resolved'),
             to: 'resolved',
           },

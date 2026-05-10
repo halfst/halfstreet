@@ -21,4 +21,4 @@ Something human-shaped hangs among the ivy. The dining room is south.
 The conservatory sweats in the dark.
 
 ## examined
-The tiled floor is split by roots. The air smells of wet soil and cold iron. Pruning shears lie half-buried beneath a bench.
+The tiled floor is split by roots. The air smells of wet soil and cold iron. A bench has been dragged beneath the blind glass roof.

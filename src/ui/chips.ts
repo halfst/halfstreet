@@ -53,12 +53,12 @@ export function computeChips(state: GameState, world: World): Chip[] {
     const phase = def?.phases[state.encounterState[room.encounter]!]
     if (def && phase) {
       for (const t of phase.transitions) {
-        const targetLabel = t.target && t.target !== '*' ? ` ${t.target.toUpperCase()}` : ''
-        const command = t.target && t.target !== '*' ? `${t.verb} ${t.target}` : t.verb
+        const targetLabel = t.target && t.target !== '*' ? ` ${t.target.replace(/-/g, ' ').toUpperCase()}` : ''
+        const command = t.target && t.target !== '*' ? `${t.verb} ${t.target.replace(/-/g, ' ')}` : t.verb
         out.push({
           kind: 'encounter',
-          label: `${t.verb.toUpperCase()}${targetLabel}`,
-          command,
+          label: t.chipLabel ?? `${t.verb.toUpperCase()}${targetLabel}`,
+          command: t.chipCommand ?? command,
           disabled: false,
         })
       }
@@ -68,6 +68,7 @@ export function computeChips(state: GameState, world: World): Chip[] {
   // Persistent meta chips.
   out.push({ kind: 'meta', label: 'LOOK', command: 'look', disabled: false })
   out.push({ kind: 'meta', label: 'INV', command: 'inventory', disabled: false })
+  out.push({ kind: 'meta', label: 'USE', command: 'use ', disabled: false })
   out.push({ kind: 'meta', label: 'HELP', command: 'help', disabled: false })
 
   return out

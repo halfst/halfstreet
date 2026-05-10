@@ -36,14 +36,15 @@ describe('computeChips — sample world', () => {
     s = dispatch(s, { kind: 'go', direction: 'n' }, world).state
     s = dispatch(s, { kind: 'go', direction: 'e' }, world).state
     const chips = computeChips(s, world)
-    expect(chips.find((c) => c.kind === 'encounter' && c.command.includes('rat'))).toBeTruthy()
+    expect(chips.find((c) => c.kind === 'encounter' && c.label === 'ATTACK RAT' && c.command === 'attack rat')).toBeTruthy()
   })
 
-  it('always includes LOOK, INV, and HELP', () => {
+  it('always includes LOOK, INV, USE, and HELP', () => {
     const s = initialStateFor(world)
     const chips = computeChips(s, world)
     expect(chips.find((c) => c.command === 'look')).toBeTruthy()
     expect(chips.find((c) => c.command === 'inventory')).toBeTruthy()
+    expect(chips.find((c) => c.label === 'USE' && c.command === 'use ')).toBeTruthy()
     expect(chips.find((c) => c.command === 'help')).toBeTruthy()
   })
 })
