@@ -1,8 +1,10 @@
 const STORAGE_KEY = 'halfstreet:theme:v1'
 const CURSOR_STORAGE_KEY = 'halfstreet:cursor:v1'
+const CHIPS_STORAGE_KEY = 'halfstreet:chips:v1'
 
 type Theme = 'amber' | 'ansi'
 type Cursor = 'bar' | 'block' | 'underscore'
+type Chips = 'on' | 'off'
 
 function getStored(): Theme {
   try {
@@ -18,6 +20,14 @@ function getStoredCursor(): Cursor {
     return stored === 'block' || stored === 'underscore' ? stored : 'bar'
   } catch {
     return 'bar'
+  }
+}
+
+function getStoredChips(): Chips {
+  try {
+    return localStorage.getItem(CHIPS_STORAGE_KEY) === 'off' ? 'off' : 'on'
+  } catch {
+    return 'on'
   }
 }
 
@@ -45,9 +55,22 @@ function setCursor(cursor: Cursor): void {
   }
 }
 
+function setChips(chips: Chips): void {
+  document.documentElement.setAttribute('data-mystery-chips-state', chips)
+  try {
+    localStorage.setItem(CHIPS_STORAGE_KEY, chips)
+  } catch {
+    // ignore
+  }
+  for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-chips-choice]')) {
+    btn.setAttribute('aria-pressed', btn.dataset['chipsChoice'] === chips ? 'true' : 'false')
+  }
+}
+
 const initial = getStored()
 setTheme(initial)
 setCursor(getStoredCursor())
+setChips(getStoredChips())
 
 const optionsRoot = document.querySelector<HTMLElement>('[data-mystery-options]')
 const optionsToggle = document.querySelector<HTMLButtonElement>('[data-options-toggle]')
@@ -85,6 +108,13 @@ document.querySelectorAll<HTMLButtonElement>('[data-cursor-choice]').forEach((bt
   btn.addEventListener('click', () => {
     const next = (btn.dataset['cursorChoice'] as Cursor | undefined) ?? 'bar'
     setCursor(next)
+  })
+})
+
+document.querySelectorAll<HTMLButtonElement>('[data-chips-choice]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const next = (btn.dataset['chipsChoice'] as Chips | undefined) ?? 'on'
+    setChips(next)
   })
 })
 

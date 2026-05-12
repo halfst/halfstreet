@@ -1,6 +1,6 @@
 import type { Chip } from './chips'
 
-const CHIP_CONTAINER = '[data-mystery-chips]'
+const CHIP_CONTAINER = '.mystery-chips[data-mystery-chips]'
 
 export function renderChips(chips: Chip[], onSelect: (command: string) => void): void {
   const container = document.querySelector<HTMLDivElement>(CHIP_CONTAINER)

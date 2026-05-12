@@ -96,7 +96,7 @@ export function applyVerbToEncounter(
         }
       }
     }
-    if (t.requires && instrumentId && t.requires.item !== instrumentId) return false
+    if (t.requires && instrumentId && t.requires.item !== instrumentId && t.requires.item !== targetId) return false
     return true
   })
 

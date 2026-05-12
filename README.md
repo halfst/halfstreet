@@ -12,7 +12,6 @@ Played at [halfstreet.io](https://halfstreet.io).
 - TypeScript engine — pure (no DOM, `Date`, `Math.random`, or console)
 - World content authored in markdown (rooms, items, encounters, endings) under `src/world/`
 - [Vitest](https://vitest.dev) for tests
-- Optional client error reporting via [GlitchTip](https://glitchtip.com) using `PUBLIC_GLITCHTIP_DSN`
 
 ## Development
 
@@ -22,9 +21,6 @@ npm test          # engine + world tests
 npm run dev       # local dev server
 npm run build     # type-check + production build
 ```
-
-To enable GlitchTip in the browser, set `PUBLIC_GLITCHTIP_DSN` in your environment before running or building the site.
-If you want deploy-aware grouping and readable stack traces, also set `PUBLIC_GLITCHTIP_RELEASE` at build time and upload the generated source maps for that same release.
 
 ## Layout
 

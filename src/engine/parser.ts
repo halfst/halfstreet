@@ -34,6 +34,8 @@ const VERB_SYNONYMS: Record<string, Verb> = {
   pull: 'pull',
   cut: 'cut', trim: 'cut',
   play: 'play',
+  listen: 'listen',
+  pour: 'pour',
   uncover: 'open',
   wait: 'wait', z: 'wait',
 }
@@ -57,7 +59,7 @@ const META_VERBS: Record<string, MetaVerb> = {
 }
 
 /** Verbs that legally take no target. */
-const VERB_ONLY_VERBS = new Set<string>(['look', 'inventory', 'wait'])
+const VERB_ONLY_VERBS = new Set<string>(['look', 'inventory', 'wait', 'listen'])
 
 /** Two-word verb prefixes (e.g. "pick up X"). */
 const TWO_WORD_VERBS = ['pick up']
@@ -157,7 +159,7 @@ export function parse(rawInput: string, ctx: ParserContext): ParsedCommand {
 
   if (rest.length === 0) {
     if (VERB_ONLY_VERBS.has(verb)) {
-      return { kind: 'verb-only', verb: verb as 'look' | 'inventory' | 'wait' }
+      return { kind: 'verb-only', verb: verb as 'look' | 'inventory' | 'wait' | 'listen' }
     }
     return { kind: 'unknown', raw: trimmed, reason: 'malformed' }
   }

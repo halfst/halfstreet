@@ -128,4 +128,98 @@ describe('playthrough — sample world', () => {
     expect(state.location).toBe('attic')
     expect(state.inventory.map((i) => i.id)).toContain('toy-dog')
   })
+
+  it('plays through the garden and grounds slice', () => {
+    const state = play([
+      'n',                 // gate → foyer
+      'n',                 // foyer → hallway
+      'u',                 // hallway → parlor
+      'u',                 // parlor → upper stair
+      'wait',
+      'u',                 // upper stair → bedroom
+      'e',                 // bedroom → nursery
+      'take dog',
+      'w',
+      'd',                 // bedroom → upper stair
+      'd',                 // upper stair → parlor
+      'd',                 // parlor → hallway
+      'n',                 // hallway → dining-room
+      'close curtains',
+      'e',                 // dining-room → kitchen
+      'e',                 // kitchen → back-door
+      'e',                 // back-door → garden
+      'wait',
+      'n',                 // garden → well
+      'd',                 // well → well-shaft
+      'hold dog',
+    ])
+
+    expect(state.flags['garden-procession.resolved']).toBe(true)
+    expect(state.flags['child-beneath-well.resolved']).toBe(true)
+    expect(state.flags['gardenQuiet']).toBe(true)
+    expect(state.flags['childPassedWell']).toBe(true)
+    expect(state.location).toBe('well-shaft')
+  })
+
+  it('plays through the lower-passages slice', () => {
+    const state = play([
+      'n',                 // gate → foyer
+      'n',                 // foyer → hallway
+      'n',                 // hallway → dining-room
+      'close curtains',
+      'n',                 // dining-room → conservatory
+      'take shears',
+      'cut vines with shears',
+      's',                 // conservatory → dining-room
+      'w',                 // dining-room → hallway
+      'd',                 // hallway → music-room
+      'play note',
+      'n',                 // music-room → servants-passage
+      'wait',
+      'e',                 // servants-passage → laundry
+      'wait',
+      'take damp sheet',
+      'w',                 // laundry → servants-passage
+      's',                 // servants-passage → music-room
+      'u',                 // music-room → hallway
+      'n',                 // hallway → dining-room
+      'e',                 // dining-room → kitchen
+      'e',                 // kitchen → back-door
+      'e',                 // back-door → garden
+      'wait',
+      'n',                 // garden → well
+      'd',                 // well → well-shaft
+      'wait',
+      'd',                 // well-shaft → tunnel
+      'n',                 // tunnel → ossuary
+      'take ring',
+      'leave ring',
+      'e',                 // ossuary → flooded-passage
+      'use water with sheet',
+      'take boat',
+      'n',                 // flooded-passage → root-chamber
+      'listen',
+      'e',                 // root-chamber → burial-gallery
+      'examine portraits',
+      'take register',
+      'read register',
+      'e',                 // burial-gallery → antechamber
+      'e',                 // antechamber → vault
+    ])
+
+    expect(state.flags['bone-keeper.resolved']).toBe(true)
+    expect(state.flags['reflection.resolved']).toBe(true)
+    expect(state.flags['root-movement.resolved']).toBe(true)
+    expect(state.flags['portrait-woman.resolved']).toBe(true)
+    expect(state.flags['burialRingPlaced']).toBe(true)
+    expect(state.flags['reflectionObscured']).toBe(true)
+    expect(state.flags['rootsListenedTo']).toBe(true)
+    expect(state.flags['familyResemblanceSeen']).toBe(true)
+    expect(state.location).toBe('vault')
+    expect(state.inventory.map((i) => i.id)).toEqual(expect.arrayContaining([
+      'damp-sheet',
+      'toy-boat',
+      'family-register',
+    ]))
+  })
 })

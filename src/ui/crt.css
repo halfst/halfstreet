@@ -359,6 +359,10 @@ body {
   animation: mystery-cursor-blink 1.05s steps(1, end) infinite;
 }
 
+:root[data-mystery-input-focused] .mystery-input-display::after {
+  animation: mystery-cursor-blink 1.05s steps(1, end) infinite;
+}
+
 @keyframes mystery-cursor-blink {
   0%, 49% { opacity: 1; }
   50%, 100% { opacity: 0; }
@@ -381,6 +385,10 @@ body {
   padding: 6px 0 4px;
   min-width: 0;
   flex: 1 1 auto;
+}
+
+:root[data-mystery-chips-state='off'] .mystery-chips {
+  display: none;
 }
 
 .mystery-light-meter {

@@ -50,6 +50,8 @@ import '../ui/crt.css'
             </div>
             <div class="mystery-options-group" aria-label="Game">
               <div class="mystery-options-label">Game</div>
+              <button type="button" data-chips-choice="on" aria-pressed="true">Chips On</button>
+              <button type="button" data-chips-choice="off" aria-pressed="false">Chips Off</button>
               <button type="button" data-restart-choice>Restart</button>
             </div>
           </div>
@@ -90,11 +92,15 @@ import '../ui/crt.css'
       const storedCursor = (() => {
         try { return localStorage.getItem('halfstreet:cursor:v1') } catch { return null }
       })()
+      const storedChips = (() => {
+        try { return localStorage.getItem('halfstreet:chips:v1') } catch { return null }
+      })()
       document.documentElement.setAttribute('data-mystery-theme', stored === 'ansi' ? 'ansi' : 'amber')
       document.documentElement.setAttribute(
         'data-mystery-cursor',
         storedCursor === 'block' || storedCursor === 'underscore' ? storedCursor : 'bar',
       )
+      document.documentElement.setAttribute('data-mystery-chips-state', storedChips === 'off' ? 'off' : 'on')
     </script>
     <script>
       import '../ui/terminal.ts'

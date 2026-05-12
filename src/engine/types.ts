@@ -9,7 +9,7 @@ export type Direction = 'n' | 's' | 'e' | 'w' | 'u' | 'd'
 export type Verb =
   | 'go' | 'look' | 'examine' | 'take' | 'drop' | 'use' | 'open' | 'close'
   | 'read' | 'light' | 'extinguish' | 'attack' | 'inventory' | 'wait'
-  | 'hold' | 'push' | 'pull' | 'cut' | 'play'
+  | 'hold' | 'push' | 'pull' | 'cut' | 'play' | 'listen' | 'pour'
 
 export type MetaVerb = 'restart' | 'undo' | 'hint' | 'save' | 'quit' | 'theme'
 
@@ -21,7 +21,7 @@ export interface NounRef {
 }
 
 export type ParsedCommand =
-  | { kind: 'verb-only'; verb: Verb | 'look' | 'inventory' | 'wait' }
+  | { kind: 'verb-only'; verb: Verb | 'look' | 'inventory' | 'wait' | 'listen' }
   | { kind: 'verb-target'; verb: Verb; target: NounRef }
   | { kind: 'verb-target-prep'; verb: Verb; target: NounRef; preposition: string; indirect: NounRef }
   | { kind: 'ambiguous'; verb: Verb; rawNoun: string; candidates: string[] }

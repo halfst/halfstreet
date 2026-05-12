@@ -202,4 +202,188 @@ export const encounters: Record<string, EncounterDef> = {
     onFailed: { narration: narration('stair-sleeper', 'failed'), retreatTo: 'parlor' },
     defaultWrongVerbNarration: narration('stair-sleeper', 'wrong-verb'),
   },
+  'garden-procession': {
+    id: 'garden-procession',
+    aliases: ['garden procession', 'procession', 'lanterns', 'lantern', 'lights', 'hedge'],
+    startsIn: 'garden',
+    initialPhase: 'passing',
+    phases: {
+      passing: {
+        description: narration('garden-procession', 'passing'),
+        transitions: [
+          {
+            verb: 'wait',
+            chipLabel: 'WAIT',
+            narration: narration('garden-procession', 'wait-resolved'),
+            to: 'resolved',
+          },
+        ],
+      },
+    },
+    onResolved: { setFlags: { gardenQuiet: true } },
+    onFailed: { narration: narration('garden-procession', 'failed'), retreatTo: 'back-door' },
+    defaultWrongVerbNarration: narration('garden-procession', 'wrong-verb'),
+  },
+  'child-beneath-well': {
+    id: 'child-beneath-well',
+    aliases: ['child', 'well child', 'child beneath well', 'barefoot child'],
+    startsIn: 'well-shaft',
+    initialPhase: 'climbing',
+    phases: {
+      climbing: {
+        description: narration('child-beneath-well', 'climbing'),
+        transitions: [
+          {
+            verb: 'hold',
+            target: 'toy-dog',
+            chipLabel: 'SHOW DOG',
+            chipCommand: 'hold dog',
+            requires: { item: 'toy-dog' },
+            narration: narration('child-beneath-well', 'hold-toy-dog-resolved'),
+            to: 'resolved',
+          },
+          {
+            verb: 'wait',
+            chipLabel: 'WAIT',
+            narration: narration('child-beneath-well', 'wait-resolved'),
+            to: 'resolved',
+          },
+        ],
+      },
+    },
+    onResolved: { setFlags: { childPassedWell: true } },
+    onFailed: { narration: narration('child-beneath-well', 'failed'), retreatTo: 'well' },
+    defaultWrongVerbNarration: narration('child-beneath-well', 'wrong-verb'),
+  },
+  'bone-keeper': {
+    id: 'bone-keeper',
+    aliases: ['bone keeper', 'keeper', 'hands', 'bones', 'ribs'],
+    startsIn: 'ossuary',
+    initialPhase: 'arranging',
+    phases: {
+      arranging: {
+        description: narration('bone-keeper', 'arranging'),
+        transitions: [
+          {
+            verb: 'drop',
+            target: 'burial-ring',
+            chipLabel: 'LEAVE RING',
+            chipCommand: 'leave ring',
+            requires: { item: 'burial-ring' },
+            narration: narration('bone-keeper', 'leave-burial-ring-resolved'),
+            to: 'resolved',
+          },
+        ],
+      },
+    },
+    onResolved: { setFlags: { burialRingPlaced: true } },
+    onFailed: { narration: narration('bone-keeper', 'failed'), retreatTo: 'tunnel' },
+    defaultWrongVerbNarration: narration('bone-keeper', 'wrong-verb'),
+  },
+  reflection: {
+    id: 'reflection',
+    aliases: ['reflection', 'water', 'black water', 'face', 'reflected figure'],
+    startsIn: 'flooded-passage',
+    initialPhase: 'following',
+    phases: {
+      following: {
+        description: narration('reflection', 'following'),
+        transitions: [
+          {
+            verb: 'use',
+            target: 'reflection',
+            chipLabel: 'USE SHEET',
+            chipCommand: 'use water with sheet',
+            requires: { item: 'damp-sheet' },
+            narration: narration('reflection', 'obscure-water-resolved'),
+            to: 'resolved',
+          },
+        ],
+      },
+    },
+    onResolved: { setFlags: { reflectionObscured: true } },
+    onFailed: { narration: narration('reflection', 'failed'), retreatTo: 'ossuary' },
+    defaultWrongVerbNarration: narration('reflection', 'wrong-verb'),
+  },
+  'root-movement': {
+    id: 'root-movement',
+    aliases: ['root movement', 'roots', 'root', 'opening'],
+    startsIn: 'root-chamber',
+    initialPhase: 'shifting',
+    phases: {
+      shifting: {
+        description: narration('root-movement', 'shifting'),
+        transitions: [
+          {
+            verb: 'listen',
+            chipLabel: 'LISTEN',
+            chipCommand: 'listen',
+            narration: narration('root-movement', 'listen-resolved'),
+            to: 'resolved',
+          },
+        ],
+      },
+    },
+    onResolved: { setFlags: { rootsListenedTo: true } },
+    onFailed: { narration: narration('root-movement', 'failed'), retreatTo: 'flooded-passage' },
+    defaultWrongVerbNarration: narration('root-movement', 'wrong-verb'),
+  },
+  'portrait-woman': {
+    id: 'portrait-woman',
+    aliases: ['portrait woman', 'woman', 'portrait', 'portraits', 'veil', 'funeral veil'],
+    startsIn: 'burial-gallery',
+    initialPhase: 'watching',
+    phases: {
+      watching: {
+        description: narration('portrait-woman', 'watching'),
+        transitions: [
+          {
+            verb: 'examine',
+            target: 'portrait-woman',
+            chipLabel: 'EXAMINE PORTRAITS',
+            chipCommand: 'examine portraits',
+            narration: narration('portrait-woman', 'examine-portraits-resolved'),
+            to: 'resolved',
+          },
+        ],
+      },
+    },
+    onResolved: { setFlags: { familyResemblanceSeen: true } },
+    onFailed: { narration: narration('portrait-woman', 'failed'), retreatTo: 'root-chamber' },
+    defaultWrongVerbNarration: narration('portrait-woman', 'wrong-verb'),
+  },
+  basilisk: {
+    id: 'basilisk',
+    aliases: ['basilisk', 'creature', 'eye', 'altar', 'coil'],
+    startsIn: 'chapel',
+    initialPhase: 'sleeping',
+    phases: {
+      sleeping: {
+        description: narration('basilisk', 'sleeping'),
+        transitions: [
+          {
+            verb: 'pour',
+            target: 'silver-vial',
+            chipLabel: 'POUR VIAL',
+            chipCommand: 'pour vial on basilisk',
+            requires: { item: 'silver-vial' },
+            narration: narration('basilisk', 'pour-vial-resolved'),
+            to: 'resolved',
+          },
+          {
+            verb: 'use',
+            target: 'basilisk',
+            chipLabel: 'USE VIAL',
+            chipCommand: 'use basilisk with vial',
+            requires: { item: 'silver-vial' },
+            narration: narration('basilisk', 'pour-vial-resolved'),
+            to: 'resolved',
+          },
+        ],
+      },
+    },
+    onResolved: { setFlags: { basiliskSpared: true } },
+    onFailed: { narration: narration('basilisk', 'failed'), retreatTo: 'vault' },
+    defaultWrongVerbNarration: narration('basilisk', 'wrong-verb'),
+  },
 }

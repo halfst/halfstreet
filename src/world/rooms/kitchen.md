@@ -3,7 +3,7 @@ id: kitchen
 title: "[ Kitchen ]"
 exitN: null
 exitS: null
-exitE: null
+exitE: "[[back-door]]"
 exitW: "[[dining-room]]"
 exitU: null
 exitD: null
@@ -16,7 +16,7 @@ safe: true
 ## first-visit
 Something recently warm. The room smells of fat, onions, and wood smoke that has not yet cleared.
 
-The dining room is west.
+The dining room is west. A back door waits east.
 
 ## revisit
 The kitchen keeps its heat a little too long.

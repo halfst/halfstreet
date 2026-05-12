@@ -178,6 +178,7 @@ export function dispatch(state: GameState, command: ParsedCommand, world: World)
     if (command.verb === 'look') return withEndingCheck(handleLook(state, world), world)
     if (command.verb === 'inventory') return withEndingCheck(handleInventory(state, world), world)
     if (command.verb === 'wait') return withEndingCheck(handleWait(state, world), world)
+    if (command.verb === 'listen') return withEndingCheck(narrate(state, [{ kind: 'narration', text: 'You listen. The house listens back.' }]), world)
   }
 
   if (command.kind === 'verb-target') {

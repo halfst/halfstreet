@@ -8,14 +8,11 @@ import { TRANSCRIPT_CAP } from '../engine/types'
 import { computeChips } from './chips'
 import { renderChips } from './chip-render'
 import LIGHT_ICON_SVG from '../assets/noun-candle-6409709.svg?raw'
-import { initGlitchTip } from './glitchtip'
 
 const transcriptEl = document.querySelector<HTMLDivElement>('[data-mystery-transcript]')
 const inputEl = document.querySelector<HTMLInputElement>('[data-mystery-input]')
 const inputDisplayEl = document.querySelector<HTMLSpanElement>('[data-mystery-input-display]')
 const lightMeterEl = document.querySelector<HTMLDivElement>('[data-mystery-light-meter]')
-
-initGlitchTip()
 
 const HELP_TEXT = `You arrive at the address, but you do not remember what has happened. The road behind you is gone...
 
@@ -119,6 +116,10 @@ if (!transcriptEl || !inputEl || !inputDisplayEl) {
     const visibleText = inputEl.value || inputEl.placeholder
     inputDisplayEl.textContent = visibleText
     inputDisplayEl.dataset['placeholder'] = inputEl.value ? 'false' : inputEl.placeholder ? 'true' : 'false'
+  }
+
+  const syncInputFocus = (focused: boolean): void => {
+    document.documentElement.toggleAttribute('data-mystery-input-focused', focused)
   }
 
   const buildParserContext = (s: GameState): ParserContext => {
@@ -356,7 +357,13 @@ if (!transcriptEl || !inputEl || !inputDisplayEl) {
   })
 
   inputEl.addEventListener('input', syncCommandLine)
-  inputEl.addEventListener('focus', clearIdleHint)
+  inputEl.addEventListener('focus', () => {
+    syncInputFocus(true)
+    clearIdleHint()
+  })
+  inputEl.addEventListener('blur', () => {
+    syncInputFocus(false)
+  })
   inputEl.addEventListener('pointerdown', clearIdleHint)
 
   inputEl.parentElement?.addEventListener('pointerdown', () => {

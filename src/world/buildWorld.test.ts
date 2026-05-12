@@ -20,6 +20,7 @@ describe('assembled world', () => {
       'bedroom',
       'nursery',
       'attic',
+      'chapel',
     ]))
   })
 
@@ -40,6 +41,7 @@ describe('assembled world', () => {
       'childs-drawing',
       'music-box',
       'toy-dog',
+      'silver-vial',
     ]))
   })
 

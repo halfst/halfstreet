@@ -16,6 +16,10 @@ describe('parser — verb-only commands', () => {
     expect(parse('look', emptyCtx)).toEqual({ kind: 'verb-only', verb: 'look' })
   })
 
+  it('recognizes bare "listen"', () => {
+    expect(parse('listen', emptyCtx)).toEqual({ kind: 'verb-only', verb: 'listen' })
+  })
+
   it('recognizes bare "inventory" and short forms', () => {
     expect(parse('inventory', emptyCtx)).toEqual({ kind: 'verb-only', verb: 'inventory' })
     expect(parse('inv', emptyCtx)).toEqual({ kind: 'verb-only', verb: 'inventory' })
@@ -97,6 +101,24 @@ describe('parser — verb + target', () => {
       kind: 'verb-target',
       verb: 'open',
       target: { canonical: 'covered-cage', raw: 'cage' },
+    })
+  })
+
+  it('recognizes pour commands with an indirect target', () => {
+    const ctx: ParserContext = {
+      knownItems: ['silver-vial'],
+      knownEncounters: ['basilisk'],
+      visibleNouns: [{ id: 'basilisk', aliases: ['basilisk'] }],
+      inventoryItemIds: ['silver-vial'],
+      lastNoun: null,
+      awaitingDisambiguation: null,
+    }
+    expect(parse('pour silver-vial on basilisk', ctx)).toEqual({
+      kind: 'verb-target-prep',
+      verb: 'pour',
+      target: { canonical: 'silver-vial', raw: 'silver-vial' },
+      preposition: 'on',
+      indirect: { canonical: 'basilisk', raw: 'basilisk' },
     })
   })
 

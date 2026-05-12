@@ -10,7 +10,7 @@ const world: World = {
       id: 'foyer',
       title: '[ Foyer ]',
       descriptions: { firstVisit: 'Foyer.', revisit: 'Foyer.', examined: 'Foyer.' },
-      exits: { n: 'stair' },
+      exits: { n: 'stair', e: 'chapel' },
       items: [],
       safe: true,
     },
@@ -29,10 +29,19 @@ const world: World = {
       exits: { u: 'stair' },
       items: [],
     },
+    chapel: {
+      id: 'chapel',
+      title: '[ Chapel ]',
+      descriptions: { firstVisit: 'Chapel.', revisit: 'Chapel.', examined: 'Chapel.' },
+      exits: { s: 'foyer' },
+      items: ['vial'],
+      encounter: 'basilisk',
+    },
   },
   items: {
     mirror: { id: 'mirror', names: ['mirror', 'tarnished mirror'], short: 'a tarnished mirror', long: 'A small mirror, tarnished black.', initialState: {}, takeable: true },
     sword: { id: 'sword', names: ['sword', 'cane sword'], short: 'a cane sword', long: 'A slim cane sword.', initialState: {}, takeable: true },
+    vial: { id: 'vial', names: ['vial'], short: 'a vial', long: 'A small vial.', initialState: {}, takeable: true },
   },
   encounters: {
     revenant: {
@@ -58,6 +67,22 @@ const world: World = {
       onResolved: { setFlags: { revenantLaid: true } },
       onFailed: { narration: 'You stagger back.', retreatTo: 'foyer' },
       defaultWrongVerbNarration: 'The revenant does not seem to notice.',
+    },
+    basilisk: {
+      id: 'basilisk',
+      aliases: ['basilisk'],
+      startsIn: 'chapel',
+      initialPhase: 'sleeping',
+      phases: {
+        sleeping: {
+          description: 'An eye opens beneath the altar.',
+          transitions: [
+            { verb: 'pour', target: 'vial', requires: { item: 'vial' }, narration: 'The eye closes.', to: 'resolved' },
+          ],
+        },
+      },
+      onResolved: { setFlags: { basiliskSpared: true } },
+      defaultWrongVerbNarration: 'The eye watches.',
     },
   },
   endings: {
@@ -115,5 +140,28 @@ describe('encounters — phase advancement', () => {
     s = dispatch(s, { kind: 'go', direction: 'n' }, world).state
     s = dispatch(s, { kind: 'go', direction: 's' }, world).state
     expect(s.resolveLevel).toBe('steady')
+  })
+
+  it('allows a required item to be the direct target in a target-preposition encounter command', () => {
+    let s = initialStateFor(world)
+    s = {
+      ...s,
+      inventory: [...s.inventory, { id: 'vial', state: {} }],
+      roomState: { ...s.roomState, chapel: { takenItems: ['vial'] } },
+    }
+    s = dispatch(s, { kind: 'go', direction: 'e' }, world).state
+    const r = dispatch(
+      s,
+      {
+        kind: 'verb-target-prep',
+        verb: 'pour',
+        target: { canonical: 'vial', raw: 'vial' },
+        preposition: 'on',
+        indirect: { canonical: 'basilisk', raw: 'basilisk' },
+      },
+      world,
+    )
+    expect(r.state.flags['basiliskSpared']).toBe(true)
+    expect(r.appended.some((l) => l.text.includes('eye closes'))).toBe(true)
   })
 })
