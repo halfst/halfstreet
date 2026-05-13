@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { parse } from './parser'
 import type { ParserContext } from './parser'
-import { dispatch, initialStateFor } from './dispatcher'
+import { dispatch, getItemsInRoom, initialStateFor } from './dispatcher'
 import { world } from '../world'
 import type { GameState } from './types'
 
@@ -222,5 +222,117 @@ describe('playthrough — sample world', () => {
       'toy-boat',
       'family-register',
     ]))
+  })
+
+  it('plays through the conditional rain-room branch', () => {
+    const state = play([
+      'n',                 // gate → foyer
+      'n',                 // foyer → hallway
+      'u',                 // hallway → parlor
+      'u',                 // parlor → upper stair
+      'wait',
+      'd',                 // upper stair → parlor
+      's',                 // parlor → wrong hallway
+      'wait',
+      'n',                 // wrong hallway → rain room
+      'look basin',
+    ])
+
+    expect(state.flags['distant-steps.resolved']).toBe(true)
+    expect(state.flags['rainwater-basin.resolved']).toBe(true)
+    expect(state.flags['rainRoomEntered']).toBe(true)
+    expect(state.endedWith).toBe('replacement')
+  })
+
+  it('reaches the expanded true ending through the vault choice', () => {
+    const state = play([
+      'n',                 // gate → foyer
+      'n',                 // foyer → hallway
+      'n',                 // hallway → dining-room
+      'close curtains',
+      'n',                 // dining-room → conservatory
+      'take shears',
+      'cut vines with shears',
+      's',                 // conservatory → dining-room
+      'w',                 // dining-room → hallway
+      'd',                 // hallway → music-room
+      'play note',
+      'n',                 // music-room → servants-passage
+      'wait',
+      'e',                 // servants-passage → laundry
+      'wait',
+      'take damp sheet',
+      'w',                 // laundry → servants-passage
+      's',                 // servants-passage → music-room
+      'u',                 // music-room → hallway
+      'n',                 // hallway → dining-room
+      'e',                 // dining-room → kitchen
+      'e',                 // kitchen → back-door
+      'e',                 // back-door → garden
+      'wait',
+      'n',                 // garden → well
+      'd',                 // well → well-shaft
+      'wait',
+      'd',                 // well-shaft → tunnel
+      'n',                 // tunnel → ossuary
+      'take ring',
+      'leave ring',
+      'e',                 // ossuary → flooded-passage
+      'use water with sheet',
+      'n',                 // flooded-passage → root-chamber
+      'listen',
+      'e',                 // root-chamber → burial-gallery
+      'examine portraits',
+      'take register',
+      'e',                 // burial-gallery → antechamber
+      'e',                 // antechamber → vault
+      'n',                 // vault → chapel
+      'take vial',
+      'pour vial on basilisk',
+      's',                 // chapel → vault
+      'read register',
+    ])
+
+    expect(state.flags['basiliskSpared']).toBe(true)
+    expect(state.flags['nameSpoken']).toBe(true)
+    expect(state.endedWith).toBe('true')
+  })
+
+  it('passes out after wandering the drunk rooms too long', () => {
+    const state = play([
+      'n',                 // gate → foyer
+      'n',                 // foyer → hallway
+      'n',                 // hallway → dining-room
+      'e',                 // dining-room → kitchen
+      'take whiskey',
+      'drink whiskey',
+      'e', 'w', 'e', 'w', 'e',
+      'w', 'e', 'w', 'e', 'w',
+      'e', 'w', 'e', 'w', 'e',
+      'w', 'e', 'w', 'e', 'w',
+    ])
+
+    expect(state.location).toBe('foyer')
+    expect(state.flags['drunk']).toBe(false)
+    expect(state.flags['drunkMoves']).toBe(0)
+    expect(getItemsInRoom(state, world, 'kitchen')).toContain('whiskey')
+  })
+
+  it('finds the faceless man in the drunk rooms and wakes in the foyer', () => {
+    const state = play([
+      'n',                 // gate → foyer
+      'n',                 // foyer → hallway
+      'n',                 // hallway → dining-room
+      'e',                 // dining-room → kitchen
+      'take whiskey',
+      'drink whiskey',
+      'u',                 // drunk hall → drunk landing
+      'listen',
+    ])
+
+    expect(state.location).toBe('foyer')
+    expect(state.flags['facelessManMet']).toBe(true)
+    expect(state.flags['houseDebtNamed']).toBe(true)
+    expect(state.flags['drunk']).toBe(false)
   })
 })

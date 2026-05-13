@@ -2,7 +2,9 @@
 id: bedroom
 title: "[ Bedroom ]"
 exitN: null
-exitS: null
+exitS: "[[returned-nursery]]"
+exitSRequires: woofReturned
+exitSLockedText: "The south wall holds only wallpaper, faded to the color of old linen."
 exitE: "[[nursery]]"
 exitW: null
 exitU: "[[attic]]"

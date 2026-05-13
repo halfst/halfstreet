@@ -27,6 +27,7 @@ const VERB_SYNONYMS: Record<string, Verb> = {
   drop: 'drop', put: 'drop', leave: 'drop',
   use: 'use', combine: 'use',
   open: 'open', close: 'close',
+  drink: 'drink', sip: 'drink',
   read: 'read', light: 'light', extinguish: 'extinguish', douse: 'extinguish',
   attack: 'attack', kill: 'attack', fight: 'attack', strike: 'attack',
   hold: 'hold', show: 'hold',

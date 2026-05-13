@@ -179,7 +179,7 @@ export function parseItem(raw: string, sourcePath: string): Item {
 }
 
 export interface ParsedEnding {
-  id: 'true' | 'wrong' | 'bad'
+  id: 'true' | 'wrong' | 'bad' | 'replacement' | 'mercy'
   ending: { whenFlags: Record<string, string | boolean | number | string[]>; narration: string }
 }
 

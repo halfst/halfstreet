@@ -240,6 +240,7 @@ export const encounters: Record<string, EncounterDef> = {
             chipCommand: 'hold dog',
             requires: { item: 'toy-dog' },
             narration: narration('child-beneath-well', 'hold-toy-dog-resolved'),
+            setFlags: { woofReturned: true },
             to: 'resolved',
           },
           {
@@ -385,5 +386,132 @@ export const encounters: Record<string, EncounterDef> = {
     onResolved: { setFlags: { basiliskSpared: true } },
     onFailed: { narration: narration('basilisk', 'failed'), retreatTo: 'vault' },
     defaultWrongVerbNarration: narration('basilisk', 'wrong-verb'),
+  },
+  'vault-memory': {
+    id: 'vault-memory',
+    aliases: ['vault memory', 'memory', 'bed', 'photograph', 'photo', 'thing', 'buried thing'],
+    startsIn: 'vault',
+    initialPhase: 'buried',
+    phases: {
+      buried: {
+        description: narration('vault-memory', 'buried'),
+        transitions: [
+          {
+            verb: 'read',
+            target: 'family-register',
+            chipLabel: 'READ REGISTER',
+            chipCommand: 'read register',
+            requires: { item: 'family-register' },
+            narration: narration('vault-memory', 'read-register-resolved'),
+            setFlags: { nameSpoken: true },
+            to: 'resolved',
+          },
+          {
+            verb: 'take',
+            target: 'vault-memory',
+            chipLabel: 'TAKE PHOTO',
+            chipCommand: 'take photograph',
+            narration: narration('vault-memory', 'take-photograph-resolved'),
+            setFlags: { tookPhotograph: true },
+            to: 'resolved',
+          },
+          {
+            verb: 'attack',
+            target: 'vault-memory',
+            chipLabel: 'ATTACK BED',
+            chipCommand: 'attack bed',
+            narration: narration('vault-memory', 'attack-bed-resolved'),
+            setFlags: { disturbedVault: true },
+            to: 'resolved',
+          },
+        ],
+      },
+    },
+    defaultWrongVerbNarration: narration('vault-memory', 'wrong-verb'),
+  },
+  'creaking-floorboard': {
+    id: 'creaking-floorboard',
+    aliases: ['creaking floorboard', 'floorboard', 'board', 'creak', 'secret door', 'faceless man', 'man', 'voice'],
+    startsIn: 'drunk-landing',
+    initialPhase: 'creaking',
+    phases: {
+      creaking: {
+        description: narration('creaking-floorboard', 'creaking'),
+        transitions: [
+          {
+            verb: 'listen',
+            chipLabel: 'LISTEN',
+            chipCommand: 'listen',
+            narration: narration('creaking-floorboard', 'listen-resolved'),
+            setFlags: { drunkSecretFound: true, facelessManMet: true, houseDebtNamed: true },
+            to: 'resolved',
+          },
+          {
+            verb: 'open',
+            target: 'creaking-floorboard',
+            chipLabel: 'OPEN BOARD',
+            chipCommand: 'open floorboard',
+            narration: narration('creaking-floorboard', 'listen-resolved'),
+            setFlags: { drunkSecretFound: true, facelessManMet: true, houseDebtNamed: true },
+            to: 'resolved',
+          },
+        ],
+      },
+    },
+    defaultWrongVerbNarration: narration('creaking-floorboard', 'wrong-verb'),
+  },
+  'distant-steps': {
+    id: 'distant-steps',
+    aliases: ['distant steps', 'steps', 'footsteps', 'hallway'],
+    startsIn: 'wrong-hallway',
+    initialPhase: 'approaching',
+    phases: {
+      approaching: {
+        description: narration('distant-steps', 'approaching'),
+        transitions: [
+          {
+            verb: 'wait',
+            chipLabel: 'WAIT',
+            narration: narration('distant-steps', 'wait-resolved'),
+            to: 'resolved',
+          },
+        ],
+      },
+    },
+    onResolved: { setFlags: { distantStepsPassed: true } },
+    onFailed: { narration: narration('distant-steps', 'failed'), retreatTo: 'parlor' },
+    defaultWrongVerbNarration: narration('distant-steps', 'wrong-verb'),
+  },
+  'rainwater-basin': {
+    id: 'rainwater-basin',
+    aliases: ['rainwater basin', 'basin', 'water', 'rainwater', 'reflection'],
+    startsIn: 'rain-room',
+    initialPhase: 'reflecting',
+    phases: {
+      reflecting: {
+        description: narration('rainwater-basin', 'reflecting'),
+        transitions: [
+          {
+            verb: 'look',
+            target: 'rainwater-basin',
+            chipLabel: 'LOOK BASIN',
+            chipCommand: 'look basin',
+            narration: narration('rainwater-basin', 'look-resolved'),
+            to: 'resolved',
+          },
+          {
+            verb: 'examine',
+            target: 'rainwater-basin',
+            chipLabel: 'EXAMINE BASIN',
+            chipCommand: 'examine basin',
+            narration: narration('rainwater-basin', 'look-resolved'),
+            to: 'resolved',
+          },
+        ],
+      },
+    },
+    onResolved: { setFlags: { rainRoomEntered: true, houseAcceptedYou: true } },
+    onFailed: { narration: narration('rainwater-basin', 'failed'), retreatTo: 'wrong-hallway' },
+    defaultWrongVerbNarration: narration('rainwater-basin', 'wrong-verb'),
   },
 }

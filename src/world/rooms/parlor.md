@@ -2,7 +2,9 @@
 id: parlor
 title: "[ Parlor ]"
 exitN: "[[study]]"
-exitS: null
+exitS: "[[wrong-hallway]]"
+exitSRequires: hallwayShifted
+exitSLockedText: "The chairs face that wall with great expectation, but the room has not yet made a door there."
 exitE: null
 exitW: null
 exitU: "[[stair-up]]"

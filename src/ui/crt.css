@@ -115,6 +115,35 @@ body {
   z-index: 1;
 }
 
+.mystery-bezel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0;
+}
+
+:root[data-mystery-drunk] .mystery-bezel::after {
+  background:
+    linear-gradient(
+      93deg,
+      transparent 0 48%,
+      color-mix(in srgb, var(--m-fg) 12%, transparent) 49% 50%,
+      transparent 51% 100%
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0 9px,
+      color-mix(in srgb, var(--m-fg) 8%, transparent) 9px 10px,
+      transparent 10px 23px
+    );
+  mix-blend-mode: screen;
+  opacity: 0.32;
+  transform: translateX(0.32ch) skewX(-1.4deg);
+  animation: mystery-drunk-screen 5.8s ease-in-out infinite;
+}
+
 .mystery-options {
   position: absolute;
   top: 8px;
@@ -308,6 +337,30 @@ body {
   margin: 0.25em 0;
 }
 
+:root[data-mystery-drunk] .mystery-transcript {
+  filter: blur(0.35px) contrast(1.05);
+  text-shadow:
+    0.055em 0.02em currentColor,
+    -0.075em -0.015em color-mix(in srgb, var(--m-fg) 50%, transparent),
+    0.14em 0 color-mix(in srgb, var(--m-accent-2) 26%, transparent),
+    0 0 4px currentColor;
+  animation: mystery-drunk-copy 6.4s ease-in-out infinite;
+}
+
+:root[data-mystery-drunk] .mystery-transcript .player,
+:root[data-mystery-drunk] .mystery-transcript .system,
+:root[data-mystery-drunk] .mystery-transcript .narration {
+  transform: translateX(0.12ch) skewX(-1.2deg);
+}
+
+:root[data-mystery-drunk] .mystery-transcript > div:nth-child(2n) {
+  transform: translateX(-0.18ch) skewX(0.8deg);
+}
+
+:root[data-mystery-drunk] .mystery-transcript > div:nth-child(3n) {
+  transform: translateX(0.28ch) skewX(-1.4deg);
+}
+
 .mystery-input-row {
   display: flex;
   align-items: center;
@@ -370,6 +423,26 @@ body {
   animation: mystery-cursor-blink 1.05s steps(1, end) infinite;
 }
 
+:root[data-mystery-drunk] .mystery-input-row {
+  filter: blur(0.2px);
+  transform: translateX(0.2ch);
+  text-shadow:
+    0.12em 0 currentColor,
+    -0.16em 0 color-mix(in srgb, var(--m-accent-2) 42%, transparent),
+    0 0 5px currentColor;
+}
+
+:root[data-mystery-drunk] .mystery-input-row::before {
+  content: '>>';
+  letter-spacing: -0.4ch;
+}
+
+:root[data-mystery-drunk] .mystery-input-display::after {
+  text-shadow:
+    0.22em 0 currentColor,
+    -0.18em 0 color-mix(in srgb, var(--m-fg) 50%, transparent);
+}
+
 :root[data-mystery-input-focused] .mystery-input-display::after {
   animation: mystery-cursor-blink 1.05s steps(1, end) infinite;
 }
@@ -377,6 +450,31 @@ body {
 @keyframes mystery-cursor-blink {
   0%, 49% { opacity: 1; }
   50%, 100% { opacity: 0; }
+}
+
+@keyframes mystery-drunk-copy {
+  0%, 18%, 100% {
+    filter: blur(0.2px) contrast(1.03);
+    transform: translate(0, 0) skewX(0);
+  }
+  36% {
+    filter: blur(0.8px) contrast(1.08);
+    transform: translate(0.12ch, -0.04em) skewX(-0.25deg);
+  }
+  58% {
+    filter: blur(0.3px) contrast(1.04);
+    transform: translate(-0.06ch, 0.02em) skewX(0.08deg);
+  }
+  76% {
+    filter: blur(0.65px) contrast(1.07);
+    transform: translate(-0.18ch, 0.05em) skewX(0.32deg);
+  }
+}
+
+@keyframes mystery-drunk-screen {
+  0%, 100% { transform: translateX(0.32ch) skewX(-1.4deg); }
+  45% { transform: translateX(-0.22ch) skewX(1.1deg); }
+  72% { transform: translateX(0.5ch) skewX(-0.6deg); }
 }
 
 .mystery-controls {
@@ -477,6 +575,17 @@ body {
 .mystery-chip[disabled] {
   opacity: 0.35;
   cursor: not-allowed;
+}
+
+:root[data-mystery-drunk] .mystery-chip {
+  transform: rotate(-0.6deg);
+  text-shadow:
+    0.1em 0 currentColor,
+    -0.1em 0 color-mix(in srgb, var(--m-fg) 35%, transparent);
+}
+
+:root[data-mystery-drunk] .mystery-chip:nth-child(2n) {
+  transform: translateY(1px) rotate(0.8deg);
 }
 
 .mystery-transcript .ending {

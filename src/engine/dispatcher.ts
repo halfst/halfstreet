@@ -4,6 +4,7 @@ import { SCHEMA_VERSION, TRANSCRIPT_CAP } from './types'
 import { applyVerbToEncounter, maybeTriggerEncounter } from './encounters'
 
 export const LIGHT_TURNS_MAX = 6
+const DRUNK_TURNS_MAX = 20
 
 export interface LightStatus {
   itemId: string
@@ -93,12 +94,13 @@ function setRoomFlag(state: GameState, roomId: string, key: string, value: strin
   }
 }
 
-const ENDING_PRIORITY: ('true' | 'wrong' | 'bad')[] = ['true', 'wrong', 'bad']
+const ENDING_PRIORITY = ['mercy', 'true', 'replacement', 'bad', 'wrong'] as const
 
 function evaluateEndings(state: GameState, world: World): GameState | null {
   if (state.endedWith) return null
   for (const id of ENDING_PRIORITY) {
     const ending = world.endings[id]
+    if (!ending) continue
     const flags = ending.whenFlags
     let allMatch = true
     for (const [k, v] of Object.entries(flags)) {
@@ -115,6 +117,7 @@ function evaluateEndings(state: GameState, world: World): GameState | null {
 }
 
 function withEndingCheck(result: DispatchResult, world: World): DispatchResult {
+  result = maybeResolveDrunkState(result, world)
   const updated = evaluateEndings(result.state, world)
   if (!updated) return result
   const endingLine: TranscriptLine = updated.transcript[updated.transcript.length - 1]!
@@ -233,6 +236,7 @@ export function dispatch(state: GameState, command: ParsedCommand, world: World,
     if (command.verb === 'drop') return withEndingCheck(handleDrop(stateWithNoun, command.target.canonical, world), world)
     if (command.verb === 'examine' || command.verb === 'look') return withEndingCheck(handleExamine(stateWithNoun, command.target.canonical, world), world)
     if (command.verb === 'read') return withEndingCheck(handleRead(stateWithNoun, command.target.canonical, world), world)
+    if (command.verb === 'drink') return withEndingCheck(handleDrink(stateWithNoun, command.target.canonical, world), world)
     if (command.verb === 'light') return withEndingCheck(handleLight(stateWithNoun, command.target.canonical, null, world), world)
     if (command.verb === 'extinguish') return withEndingCheck(handleExtinguish(stateWithNoun, command.target.canonical, world), world)
     if (command.verb === 'use') {
@@ -325,7 +329,13 @@ function handleGo(state: GameState, direction: 'n' | 's' | 'e' | 'w' | 'u' | 'd'
     { kind: 'narration', text: description },
     ...lightTick.lines,
   ]
-  const result = narrate(next, arrivalLines)
+  let result = narrate(next, arrivalLines)
+
+  if (state.flags['drunk'] === true && dest.startsWith('drunk-')) {
+    const moved = advanceDrunkTurns(result.state, world)
+    if (moved.appended.length > 0) return { state: moved.state, appended: [...arrivalLines, ...moved.appended] }
+    result = { state: moved.state, appended: arrivalLines }
+  }
 
   // Trigger any encounter waiting in this room.
   const triggered = maybeTriggerEncounter(result.state, world)
@@ -333,6 +343,81 @@ function handleGo(state: GameState, direction: 'n' | 's' | 'e' | 'w' | 'u' | 'd'
     return { state: triggered.state, appended: [...arrivalLines, ...triggered.appended] }
   }
   return result
+}
+
+function handleDrink(state: GameState, itemId: string, world: World): DispatchResult {
+  if (itemId !== 'whiskey') {
+    return narrate(state, [{ kind: 'narration', text: "You can't drink that." }])
+  }
+  const held = state.inventory.some((i) => i.id === 'whiskey')
+  if (!held) {
+    return narrate(state, [{ kind: 'narration', text: "You'd have to be carrying it." }])
+  }
+  const dest = world.rooms['drunk-hall']
+  const next: GameState = {
+    ...state,
+    location: 'drunk-hall',
+    inventory: state.inventory.filter((i) => i.id !== 'whiskey'),
+    flags: { ...state.flags, drunk: true, drunkMoves: 0, drunkSecretFound: false },
+  }
+  const visited = !!next.roomState['drunk-hall']?.['visited']
+  const withVisit = setRoomFlag(next, 'drunk-hall', 'visited', true)
+  const lines: TranscriptLine[] = [
+    { kind: 'narration', text: 'You drink from the bottle. It tastes of smoke, sugar, and rainwater left too long in a pipe.' },
+  ]
+  if (dest) {
+    lines.push(
+      { kind: 'system', text: dest.title },
+      { kind: 'narration', text: visited ? dest.descriptions.revisit : dest.descriptions.firstVisit },
+    )
+  }
+  return narrate(withVisit, lines)
+}
+
+function maybeResolveDrunkState(result: DispatchResult, world: World): DispatchResult {
+  if (result.state.flags['drunk'] !== true) return result
+  if (result.state.flags['drunkSecretFound'] === true) {
+    const passed = passOutFromDrunk(result.state, world, 'The faceless man steps backward into the dark. The floor rises under you, or you fall toward it.')
+    return { state: passed.state, appended: [...result.appended, ...passed.appended] }
+  }
+  return result
+}
+
+function advanceDrunkTurns(state: GameState, world: World): DispatchResult {
+  const current = typeof state.flags['drunkMoves'] === 'number' ? state.flags['drunkMoves'] : 0
+  const moves = current + 1
+  const next = { ...state, flags: { ...state.flags, drunkMoves: moves } }
+  if (moves < DRUNK_TURNS_MAX) return { state: next, appended: [] }
+  return passOutFromDrunk(next, world, 'The rooms keep turning until they become one room. Then even that room is gone.')
+}
+
+function passOutFromDrunk(state: GameState, world: World, preface: string): DispatchResult {
+  const foyer = world.rooms['foyer']
+  const kitchenState = state.roomState['kitchen'] ?? {}
+  const kitchenTaken = ((kitchenState['takenItems'] ?? []) as string[]).filter((id) => id !== 'whiskey')
+  const kitchenDropped = ((kitchenState['droppedItems'] ?? []) as string[]).filter((id) => id !== 'whiskey')
+  const next: GameState = {
+    ...state,
+    location: 'foyer',
+    inventory: state.inventory.filter((i) => i.id !== 'whiskey'),
+    flags: { ...state.flags, drunk: false, drunkMoves: 0, drunkSecretFound: false },
+    roomState: {
+      ...state.roomState,
+      kitchen: {
+        ...kitchenState,
+        takenItems: kitchenTaken,
+        droppedItems: kitchenDropped,
+      },
+      foyer: { ...(state.roomState['foyer'] ?? {}), visited: true },
+    },
+  }
+  const lines: TranscriptLine[] = [
+    { kind: 'narration', text: preface },
+    { kind: 'system', text: foyer?.title ?? '[ Foyer ]' },
+    { kind: 'narration', text: foyer?.descriptions.revisit ?? 'You wake in the foyer.' },
+    { kind: 'narration', text: 'The bottle is not with you. Somewhere in the kitchen, it is half full again.' },
+  ]
+  return narrate(next, lines)
 }
 
 function handleWait(state: GameState, world: World): DispatchResult {

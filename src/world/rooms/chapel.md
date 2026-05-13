@@ -7,7 +7,7 @@ exitE: null
 exitW: null
 exitU: null
 exitD: null
-items: ["silver-vial"]
+items: ["silver-vial", "altar-stone"]
 encounter: "[[basilisk]]"
 safe: false
 ---

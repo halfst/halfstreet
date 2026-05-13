@@ -50,6 +50,8 @@ const endings: World['endings'] = {
   true: { whenFlags: {}, narration: '' },
   wrong: { whenFlags: {}, narration: '' },
   bad: { whenFlags: {}, narration: '' },
+  replacement: { whenFlags: {}, narration: '' },
+  mercy: { whenFlags: {}, narration: '' },
 }
 const seenEndings = new Set<string>()
 for (const [path, raw] of Object.entries(endingFiles)) {
@@ -57,7 +59,7 @@ for (const [path, raw] of Object.entries(endingFiles)) {
   endings[id] = ending
   seenEndings.add(id)
 }
-const requiredEndings = ['true', 'wrong', 'bad'] as const
+const requiredEndings = ['true', 'wrong', 'bad', 'replacement', 'mercy'] as const
 for (const id of requiredEndings) {
   if (!seenEndings.has(id)) {
     throw new Error(`endings/${id}.md is missing — every ending id must have a markdown file.`)

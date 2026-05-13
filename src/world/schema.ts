@@ -46,7 +46,7 @@ export const itemFrontmatterSchema = z.object({
 export type ItemFrontmatter = z.infer<typeof itemFrontmatterSchema>
 
 export const endingFrontmatterSchema = z.object({
-  id: z.enum(['true', 'wrong', 'bad']),
+  id: z.enum(['true', 'wrong', 'bad', 'replacement', 'mercy']),
   whenFlags: stateRecordSchema.default({}),
 })
 

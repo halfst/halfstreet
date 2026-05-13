@@ -9,7 +9,7 @@ export type Direction = 'n' | 's' | 'e' | 'w' | 'u' | 'd'
 export type Verb =
   | 'go' | 'look' | 'examine' | 'take' | 'drop' | 'use' | 'open' | 'close'
   | 'read' | 'light' | 'extinguish' | 'attack' | 'inventory' | 'wait'
-  | 'hold' | 'push' | 'pull' | 'cut' | 'play' | 'listen' | 'pour'
+  | 'hold' | 'push' | 'pull' | 'cut' | 'play' | 'listen' | 'pour' | 'drink'
 
 export type MetaVerb = 'restart' | 'undo' | 'hint' | 'save' | 'quit' | 'theme'
 
@@ -40,6 +40,7 @@ export interface ItemInstance {
 }
 
 export type EncounterPhase = string  // phase names are encounter-specific
+export type EndingId = 'true' | 'wrong' | 'bad' | 'replacement' | 'mercy'
 
 export interface TranscriptLine {
   kind: 'narration' | 'player' | 'system' | 'ending'
@@ -77,7 +78,7 @@ export interface GameState {
   /** Capped at 200 entries; older entries are dropped on append. */
   transcript: TranscriptLine[]
   /** Set true when the player has reached an ending. UI shows ending screen. */
-  endedWith: 'true' | 'wrong' | 'bad' | null
+  endedWith: EndingId | null
 }
 
 export interface DispatchResult {

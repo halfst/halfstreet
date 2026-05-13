@@ -1,7 +1,18 @@
 ---
 id: true
 whenFlags:
-  ratGone: true
+  nameSpoken: true
+  basiliskSpared: true
+  burialRingPlaced: true
+  familyResemblanceSeen: true
 ---
 
-You stand at the top of the stair. The thing below has settled. The door behind you opens, and outside, finally, is morning.
+You stand in the vault. What is buried at Halfstreet is buried because it was loved, and grieved, and finally let go.
+
+You set the lamp beside it.
+
+You speak the name aloud.
+
+The house settles around you like a long exhalation.
+
+Outside, the road exists again.

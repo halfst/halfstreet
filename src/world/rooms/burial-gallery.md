@@ -9,6 +9,7 @@ exitU: null
 exitD: null
 items:
   - "[[family-register]]"
+  - "[[portrait-frame]]"
 encounter: "[[portrait-woman]]"
 ---
 

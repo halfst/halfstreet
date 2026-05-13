@@ -68,7 +68,7 @@ describe('endingFrontmatterSchema', () => {
   })
 
   it('rejects unknown ending id', () => {
-    const data = { id: 'mercy', whenFlags: {} }
+    const data = { id: 'secret', whenFlags: {} }
     expect(() => endingFrontmatterSchema.parse(data)).toThrow()
   })
 })

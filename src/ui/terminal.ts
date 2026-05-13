@@ -119,6 +119,10 @@ if (!transcriptEl || !inputEl || !inputDisplayEl) {
     inputEl!.classList.toggle('ended', state.endedWith !== null)
   }
 
+  const syncDrunkEffect = (): void => {
+    document.documentElement.toggleAttribute('data-mystery-drunk', state.flags['drunk'] === true)
+  }
+
   const syncCommandLine = (): void => {
     const visibleText = inputEl.value || inputEl.placeholder
     inputDisplayEl.textContent = visibleText
@@ -369,12 +373,14 @@ if (!transcriptEl || !inputEl || !inputDisplayEl) {
     refreshChips()
     syncLightMeter()
     syncEndedUI()
+    syncDrunkEffect()
   }
 
   renderAll(state.transcript, { animate: false })
   refreshChips()
   syncLightMeter()
   syncEndedUI()
+  syncDrunkEffect()
   syncCommandLine()
   scheduleIdleHint()
 
@@ -437,6 +443,7 @@ if (!transcriptEl || !inputEl || !inputDisplayEl) {
         refreshChips()
         syncLightMeter()
         syncEndedUI()
+        syncDrunkEffect()
       } else {
         appendLines([{ kind: 'system', text: 'There is no further back.' }], { scroll: false })
       }
@@ -465,6 +472,7 @@ if (!transcriptEl || !inputEl || !inputDisplayEl) {
       refreshChips()
       syncLightMeter()
       syncEndedUI()
+      syncDrunkEffect()
     } catch (err) {
       console.error('[halfstreet] dispatch error', err)
       appendLines([{ kind: 'system', text: '[ The terminal hums and resets. ]' }], { scroll: false })

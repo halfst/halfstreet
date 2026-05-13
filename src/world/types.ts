@@ -80,6 +80,8 @@ export interface EncounterTransition {
   narration: string
   /** Resolve cost for the player on this transition (0–2). */
   resolveCost?: 0 | 1 | 2
+  /** Optional transition-specific story flags. */
+  setFlags?: Record<string, string | boolean | number>
 }
 
 export interface EncounterDef {
@@ -108,5 +110,7 @@ export interface World {
     true: { whenFlags: Record<string, string | boolean | number | string[]>; narration: string }
     wrong: { whenFlags: Record<string, string | boolean | number | string[]>; narration: string }
     bad: { whenFlags: Record<string, string | boolean | number | string[]>; narration: string }
+    replacement?: { whenFlags: Record<string, string | boolean | number | string[]>; narration: string }
+    mercy?: { whenFlags: Record<string, string | boolean | number | string[]>; narration: string }
   }
 }

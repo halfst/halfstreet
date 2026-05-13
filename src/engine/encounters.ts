@@ -149,6 +149,7 @@ export function applyVerbToEncounter(
     const newEncState = { ...next.encounterState }
     delete newEncState[encId]
     let resolvedFlags = { ...next.flags, [`${encId}.resolved`]: true }
+    if (transition.setFlags) resolvedFlags = { ...resolvedFlags, ...transition.setFlags }
     if (def.onResolved?.setFlags) resolvedFlags = { ...resolvedFlags, ...def.onResolved.setFlags }
     next = { ...next, encounterState: newEncState, flags: resolvedFlags }
   } else if (transition.to === 'failed') {

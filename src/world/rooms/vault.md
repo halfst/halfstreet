@@ -8,7 +8,7 @@ exitW: "[[chamber]]"
 exitU: null
 exitD: null
 items: []
-encounter: null
+encounter: "[[vault-memory]]"
 safe: true
 ---
 
