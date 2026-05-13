@@ -51,6 +51,7 @@ describe('playthrough — sample world', () => {
       'take lamp',
       'e',            // hallway → cellar-stair (triggers rat encounter)
       'attack rat',
+      'yes',
     ])
     expect(state.flags['ratGone']).toBe(true)
     expect(state.location).toBe('cellar-stair')

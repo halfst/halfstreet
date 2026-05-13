@@ -46,6 +46,7 @@ export function initialStateFor(world: World): GameState {
     encounterState: {},
     lastNoun: null,
     pendingDisambiguation: null,
+    pendingConfirmation: null,
     transcript: opening,
     endedWith: null,
   }
@@ -120,7 +121,51 @@ function withEndingCheck(result: DispatchResult, world: World): DispatchResult {
   return { state: updated, appended: [...result.appended, endingLine] }
 }
 
-export function dispatch(state: GameState, command: ParsedCommand, world: World): DispatchResult {
+const CRITICAL_VERBS = new Set(['attack'])
+
+function isCriticalCommand(command: ParsedCommand): boolean {
+  if (command.kind !== 'verb-target' && command.kind !== 'verb-target-prep') return false
+  return CRITICAL_VERBS.has(command.verb)
+}
+
+function confirmationPrompt(command: ParsedCommand): string {
+  if (command.kind === 'verb-target') {
+    return `Are you sure you want to ${command.verb} ${command.target.raw}? Type yes to continue, or no to stop.`
+  }
+  if (command.kind === 'verb-target-prep') {
+    return `Are you sure you want to ${command.verb} ${command.target.raw} ${command.preposition} ${command.indirect.raw}? Type yes to continue, or no to stop.`
+  }
+  return 'Are you sure? Type yes to continue, or no to stop.'
+}
+
+export function dispatch(state: GameState, command: ParsedCommand, world: World, confirmed = false): DispatchResult {
+  if (command.kind === 'confirmation') {
+    const pending = state.pendingConfirmation
+    if (!pending) {
+      return narrate(state, [{ kind: 'narration', text: 'Nothing to confirm.' }])
+    }
+    const cleared: GameState = { ...state, pendingConfirmation: null }
+    if (!command.confirmed) {
+      return narrate(cleared, [{ kind: 'narration', text: 'Cancelled.' }])
+    }
+    return dispatch(cleared, pending.command, world, true)
+  }
+
+  if (state.pendingConfirmation) {
+    state = { ...state, pendingConfirmation: null }
+  }
+
+  // Once the game has ended, only restart/undo (handled by the UI) can clear state.
+  if (state.endedWith) {
+    return narrate(state, [{ kind: 'narration', text: 'The story has ended. Type `restart` or `undo`.' }])
+  }
+
+  if (!confirmed && isCriticalCommand(command)) {
+    const prompt = confirmationPrompt(command)
+    const next: GameState = { ...state, pendingConfirmation: { command, prompt } }
+    return narrate(next, [{ kind: 'narration', text: prompt }])
+  }
+
   // Disambiguation reply: re-issue the original verb with the chosen target.
   if (command.kind === 'disambiguation') {
     const pending = state.pendingDisambiguation
@@ -132,12 +177,8 @@ export function dispatch(state: GameState, command: ParsedCommand, world: World)
       cleared,
       { kind: 'verb-target', verb: pending.verb, target: { canonical: command.chosen, raw: command.chosen } },
       world,
+      confirmed,
     )
-  }
-
-  // Once the game has ended, only restart/undo (handled by the UI) can clear state.
-  if (state.endedWith) {
-    return narrate(state, [{ kind: 'narration', text: 'The story has ended. Type `restart` or `undo`.' }])
   }
 
   if (command.kind === 'unknown') {

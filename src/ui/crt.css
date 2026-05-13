@@ -204,6 +204,7 @@ body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  overflow-anchor: none;
   overscroll-behavior: contain;
   scrollbar-color: var(--m-dim) var(--m-bg);
   scrollbar-width: thin;
@@ -237,6 +238,16 @@ body {
   color: var(--m-accent-1);
   font-weight: bold;
   margin-top: 0.6em;
+}
+
+.mystery-transcript .room-title {
+  scroll-margin-top: 0;
+}
+
+.mystery-transcript .room-scroll-spacer {
+  max-width: none;
+  margin: 0;
+  pointer-events: none;
 }
 
 .mystery-transcript .ascii-art {

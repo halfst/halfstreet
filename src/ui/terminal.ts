@@ -44,6 +44,13 @@ if (!transcriptEl || !inputEl || !inputDisplayEl) {
   let historyIndex: number | null = null
   let historyDraft = ''
   let idleHintTimer: number | null = null
+  let renderQueue: Promise<void> = Promise.resolve()
+  let renderGeneration = 0
+  let roomScrollSpacer: HTMLDivElement | null = null
+
+  const TYPE_INTERVAL_MS = 8
+  const TYPE_CHARS_PER_TICK = 3
+  const ROOM_SCROLL_MS = 180
 
   const syncLightMeter = (): void => {
     if (!lightMeterEl) return
@@ -152,18 +159,123 @@ if (!transcriptEl || !inputEl || !inputDisplayEl) {
     }
   }
 
-  const renderAll = (lines: TranscriptLine[]): void => {
+  const wait = (ms: number): Promise<void> =>
+    new Promise((resolve) => {
+      window.setTimeout(resolve, ms)
+    })
+
+  const isAsciiArtLine = (line: TranscriptLine): boolean =>
+    line.kind === 'system' && line.text.includes('|_| |_|')
+
+  const isRoomTitleLine = (line: TranscriptLine): boolean => {
+    if (line.kind !== 'system') return false
+    const trimmed = line.text.trim()
+    return /^\[\s*.+\s*\]$/.test(trimmed) && !trimmed.includes('|')
+  }
+
+  const typeLine = async (el: HTMLDivElement, text: string): Promise<void> => {
+    el.textContent = ''
+    for (let i = TYPE_CHARS_PER_TICK; i < text.length; i += TYPE_CHARS_PER_TICK) {
+      el.textContent = text.slice(0, i)
+      await wait(TYPE_INTERVAL_MS)
+    }
+    el.textContent = text
+  }
+
+  const scrollToTopOf = async (el: HTMLElement): Promise<void> => {
     if (!transcriptEl) return
+    transcriptEl.scrollTo({ top: Math.max(0, el.offsetTop), behavior: 'smooth' })
+    await wait(ROOM_SCROLL_MS)
+  }
+
+  const updateRoomScrollSpacer = (anchor?: HTMLElement): void => {
+    if (!transcriptEl) return
+    if (!roomScrollSpacer) {
+      roomScrollSpacer = document.createElement('div')
+      roomScrollSpacer.className = 'room-scroll-spacer'
+      roomScrollSpacer.setAttribute('aria-hidden', 'true')
+    }
+    const spacerHeight = Math.max(0, transcriptEl.clientHeight - (anchor?.offsetHeight ?? 0))
+    roomScrollSpacer.style.height = `${spacerHeight}px`
+    if (roomScrollSpacer.parentElement !== transcriptEl) {
+      transcriptEl.appendChild(roomScrollSpacer)
+    }
+  }
+
+  const scrollToContentBottom = (): void => {
+    if (!transcriptEl) return
+    updateRoomScrollSpacer()
+    const contentBottom = roomScrollSpacer?.offsetTop ?? transcriptEl.scrollHeight
+    transcriptEl.scrollTop = Math.max(0, contentBottom - transcriptEl.clientHeight)
+  }
+
+  const appendTranscriptElement = (el: HTMLDivElement): void => {
+    if (!transcriptEl) return
+    updateRoomScrollSpacer()
+    if (roomScrollSpacer?.parentElement === transcriptEl) {
+      transcriptEl.insertBefore(el, roomScrollSpacer)
+      return
+    }
+    transcriptEl.appendChild(el)
+  }
+
+  const renderLines = async (
+    lines: TranscriptLine[],
+    animate: boolean,
+    shouldScroll: boolean,
+    generation: number,
+  ): Promise<void> => {
+    if (!transcriptEl) return
+    const roomTitleInBatch = shouldScroll && animate && lines.some(isRoomTitleLine)
+    let roomTitleEl: HTMLDivElement | null = null
+
     for (const line of lines) {
+      if (generation !== renderGeneration) return
       const el = document.createElement('div')
       el.className = line.kind
-      if (line.kind === 'system' && line.text.includes('|_| |_|')) {
+      const asciiArt = isAsciiArtLine(line)
+      const roomTitle = roomTitleInBatch && isRoomTitleLine(line)
+
+      if (asciiArt) {
         el.classList.add('ascii-art')
       }
-      el.textContent = line.text
-      transcriptEl.appendChild(el)
+      if (isRoomTitleLine(line)) {
+        el.classList.add('room-title')
+      }
+
+      const shouldType = animate && line.kind !== 'player' && !asciiArt && !roomTitle
+      el.textContent = shouldType ? '' : line.text
+      appendTranscriptElement(el)
+
+      if (roomTitle) {
+        roomTitleEl = el
+        updateRoomScrollSpacer(el)
+        await scrollToTopOf(el)
+        if (generation !== renderGeneration) return
+      }
+
+      if (shouldType) {
+        await typeLine(el, line.text)
+        if (generation !== renderGeneration) return
+      }
+
+      if (shouldScroll && !roomTitleInBatch) {
+        scrollToContentBottom()
+      }
     }
-    transcriptEl.scrollTop = transcriptEl.scrollHeight
+
+    if (shouldScroll && !roomTitleEl) {
+      scrollToContentBottom()
+    }
+  }
+
+  const renderAll = (lines: TranscriptLine[], options: { animate?: boolean; scroll?: boolean } = {}): void => {
+    const animate = options.animate ?? true
+    const shouldScroll = options.scroll ?? true
+    const generation = renderGeneration
+    renderQueue = renderQueue.then(() => renderLines(lines, animate, shouldScroll, generation)).catch((err) => {
+      console.error('[halfstreet] render error', err)
+    })
   }
 
   const clearIdleHint = (): void => {
@@ -211,9 +323,9 @@ if (!transcriptEl || !inputEl || !inputDisplayEl) {
     text.className = 'mystery-help-body'
     text.textContent = HELP_TEXT
     el.append(close, text)
-    transcriptEl.appendChild(el)
+    appendTranscriptElement(el)
     transientHelpEl = el
-    transcriptEl.scrollTop = transcriptEl.scrollHeight
+    scrollToContentBottom()
   }
 
   document.addEventListener('pointerdown', (e) => {
@@ -234,30 +346,32 @@ if (!transcriptEl || !inputEl || !inputDisplayEl) {
   // notices). Pushes into state.transcript so they survive reload, then renders.
   // Engine-originated lines (from dispatch) are already in state.transcript;
   // those use renderAll directly.
-  const appendLines = (lines: TranscriptLine[]): void => {
+  const appendLines = (lines: TranscriptLine[], options: { animate?: boolean; scroll?: boolean } = {}): void => {
     state = { ...state, transcript: [...state.transcript, ...lines].slice(-TRANSCRIPT_CAP) }
-    renderAll(lines)
+    renderAll(lines, options)
   }
 
   const restart = (): void => {
     const confirmed = confirm('Restart? Your progress will be lost.')
     if (!confirmed) {
-      appendLines([{ kind: 'system', text: '(restart cancelled)' }])
+      appendLines([{ kind: 'system', text: '(restart cancelled)' }], { scroll: false })
       return
     }
     clearSave()
     state = initialStateFor(world)
+    renderGeneration += 1
+    renderQueue = Promise.resolve()
     transcriptEl.innerHTML = ''
     inputEl.value = ''
     syncCommandLine()
-    renderAll(state.transcript)
+    renderAll(state.transcript, { animate: false })
     saveState(state)
     refreshChips()
     syncLightMeter()
     syncEndedUI()
   }
 
-  renderAll(state.transcript)
+  renderAll(state.transcript, { animate: false })
   refreshChips()
   syncLightMeter()
   syncEndedUI()
@@ -293,13 +407,13 @@ if (!transcriptEl || !inputEl || !inputDisplayEl) {
     commandHistory = [...commandHistory, raw].slice(-50)
     historyIndex = null
     historyDraft = ''
-    appendLines([{ kind: 'player', text: raw }])
+    appendLines([{ kind: 'player', text: raw }], { scroll: false })
 
     // Once the game has ended, only restart and undo are allowed.
     if (state.endedWith !== null) {
       const lower = raw.trim().toLowerCase()
       if (lower !== 'restart' && lower !== 'undo') {
-        appendLines([{ kind: 'system', text: 'The story has ended. Type `restart` or `undo`.' }])
+        appendLines([{ kind: 'system', text: 'The story has ended. Type `restart` or `undo`.' }], { scroll: false })
         return
       }
     }
@@ -318,13 +432,13 @@ if (!transcriptEl || !inputEl || !inputDisplayEl) {
       if (lastState) {
         state = lastState
         lastState = null
-        appendLines([{ kind: 'system', text: '(undone)' }])
+        appendLines([{ kind: 'system', text: '(undone)' }], { scroll: false })
         saveState(state)
         refreshChips()
         syncLightMeter()
         syncEndedUI()
       } else {
-        appendLines([{ kind: 'system', text: 'There is no further back.' }])
+        appendLines([{ kind: 'system', text: 'There is no further back.' }], { scroll: false })
       }
       return
     }
@@ -339,11 +453,12 @@ if (!transcriptEl || !inputEl || !inputDisplayEl) {
       const ctx = buildParserContext(state)
       const command = parse(raw, ctx)
       lastState = state
+      const previousLocation = state.location
       const result = dispatch(state, command, world)
       state = result.state
-      renderAll(result.appended)  // dispatch already pushed these into state.transcript
+      const shouldScrollToRoom = command.kind === 'go' && state.location !== previousLocation
+      renderAll(result.appended, { scroll: shouldScrollToRoom })  // dispatch already pushed these into state.transcript
       saveState(state)
-      transcriptEl.scrollTop = transcriptEl.scrollHeight
       if (raw.trim().toLowerCase() === 'theme') {
         document.dispatchEvent(new CustomEvent('halfstreet-toggle-theme'))
       }
@@ -352,7 +467,7 @@ if (!transcriptEl || !inputEl || !inputDisplayEl) {
       syncEndedUI()
     } catch (err) {
       console.error('[halfstreet] dispatch error', err)
-      appendLines([{ kind: 'system', text: '[ The terminal hums and resets. ]' }])
+      appendLines([{ kind: 'system', text: '[ The terminal hums and resets. ]' }], { scroll: false })
     }
   })
 

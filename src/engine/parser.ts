@@ -108,6 +108,13 @@ export function parse(rawInput: string, ctx: ParserContext): ParsedCommand {
   const tokens = tokenize(trimmed)
   const head = tokens[0]!
 
+  if (tokens.length === 1 && ['yes', 'y'].includes(head)) {
+    return { kind: 'confirmation', confirmed: true }
+  }
+  if (tokens.length === 1 && head === 'no') {
+    return { kind: 'confirmation', confirmed: false }
+  }
+
   // Meta-commands take precedence (single-word).
   if (META_VERBS[head] && tokens.length === 1) {
     return { kind: 'meta', verb: META_VERBS[head]! }

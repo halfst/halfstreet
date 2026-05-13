@@ -36,6 +36,18 @@ describe('parser — verb-only commands', () => {
   })
 })
 
+describe('parser — confirmations', () => {
+  it('recognizes yes and no confirmation replies', () => {
+    expect(parse('yes', emptyCtx)).toEqual({ kind: 'confirmation', confirmed: true })
+    expect(parse('y', emptyCtx)).toEqual({ kind: 'confirmation', confirmed: true })
+    expect(parse('no', emptyCtx)).toEqual({ kind: 'confirmation', confirmed: false })
+  })
+
+  it('keeps n as the north direction shortcut', () => {
+    expect(parse('n', emptyCtx)).toEqual({ kind: 'go', direction: 'n' })
+  })
+})
+
 describe('parser — direction shortcuts', () => {
   it('maps single-letter directions', () => {
     expect(parse('n', emptyCtx)).toEqual({ kind: 'go', direction: 'n' })

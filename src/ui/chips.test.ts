@@ -48,4 +48,19 @@ describe('computeChips — sample world', () => {
     expect(chips.find((c) => c.command === 'wait')).toBeTruthy()
     expect(chips.find((c) => c.command === 'help')).toBeTruthy()
   })
+
+  it('shows only confirmation chips while a dangerous command is pending', () => {
+    const s = {
+      ...initialStateFor(world),
+      pendingConfirmation: {
+        command: { kind: 'verb-target' as const, verb: 'attack' as const, target: { canonical: 'rat', raw: 'rat' } },
+        prompt: 'Are you sure?',
+      },
+    }
+    const chips = computeChips(s, world)
+    expect(chips).toEqual([
+      { kind: 'meta', label: 'YES', command: 'yes', disabled: false },
+      { kind: 'meta', label: 'NO', command: 'no', disabled: false },
+    ])
+  })
 })

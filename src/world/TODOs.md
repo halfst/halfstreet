@@ -24,7 +24,7 @@
 - [x] If the user says "light match" or "light match" the response should be "use match with what?"
 - [x] If the user says "use match with letter" they should burn the letter.
 - [x] There should be a lighter in the smoking room that allows unlimited lighting.
-- [ ] Create a mechanic that asks "Are you sure?" before taking critical actions like attacking or other game-changing mechanics that might affect the final ending.
+- [x] Create a mechanic that asks "Are you sure?" before taking critical actions like attacking or other game-changing mechanics that might affect the final ending.
 - [ ] Add lightened descriptions to darkened rooms. About half the rooms should be too dark to see anything (affects ability to move forward, can't see exits or encounters, except for maybe hints at the encounters, like sounds or shapes in the dark) Add frontmatter property to all rooms: (dark: true/false). Make text in darkened rooms a grey color.
 - [ ] Implement a simple "stealth mechanic", where sometimes it's advantageous to have the light out.
 - [ ] Implement a simple (optional?) minimap in the UI? - Maybe tied to an item? Once you get the map the minimap appears? Can we POC it?
@@ -44,4 +44,5 @@
 - [ ] Add item Whiskey bottle, half full of something smoky. In the kitchen. Drinking it gets the player drunk, which causes them to unlock the drunk rooms, which are a series of rooms where they can go many directions, but somehow end up in seemingly back in the same spot. They are essentially a maze of doors and hallways, ladders and levels. There should be boundaries established though, it shouldn't be endless. After 20 or so moves the player passes out and wakes up back in the foyer, with the whiskey bottle returned to the kitchen, somehow still half full. Add a random encounter in the dark rooms, a creaking floorboard helps you find a secret door that opens with a faceless man inside who gives you major plot info. After this encounter you pass out and wake up in the lobby as before.
 - [ ] Set up BugPin as a self-hosted visual bug reporter for the site, then have incoming reports create markdown files under `src/world/bugs/` via a webhook or API bridge so bugs can be tracked in git alongside the game content. Include screenshot/annotation metadata in the markdown and decide whether these bug docs stay outside the world loader or get their own loader later.
 - [ ] BUG: It says the door closes behind you when you enter the lobby, but you can still exit S to the gate.
-
+- [x] FEATURE: Add a short "typed" effect to the text. Make it look like it's being typed out, if that makes sense, one character at a time. The effect should be brief. 
+- [x] FEATURE: Whenever you change rooms, scroll the text so the name of the room you're in is at the top. Users can scroll up to see the history. This should be an effect where the old text slides up to make room for the new text, and this should happen before the "typed" effect.

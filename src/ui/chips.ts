@@ -20,6 +20,13 @@ export function computeChips(state: GameState, world: World): Chip[] {
   const room = world.rooms[state.location]
   if (!room) return out
 
+  if (state.pendingConfirmation) {
+    return [
+      { kind: 'meta', label: 'YES', command: 'yes', disabled: false },
+      { kind: 'meta', label: 'NO', command: 'no', disabled: false },
+    ]
+  }
+
   // Direction chips: enabled if exit exists, dimmed otherwise.
   const dirs: Direction[] = ['n', 's', 'e', 'w', 'u', 'd']
   for (const d of dirs) {

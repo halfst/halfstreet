@@ -112,9 +112,23 @@ describe('encounters — phase advancement', () => {
   it('wrong verb costs resolve and surfaces a clue', () => {
     let s = initialStateFor(world)
     s = dispatch(s, { kind: 'go', direction: 'n' }, world).state
-    const r = dispatch(s, { kind: 'verb-target', verb: 'attack', target: { canonical: 'revenant', raw: 'revenant' } }, world)
+    const prompt = dispatch(s, { kind: 'verb-target', verb: 'attack', target: { canonical: 'revenant', raw: 'revenant' } }, world)
+    expect(prompt.state.pendingConfirmation).toBeDefined()
+    expect(prompt.appended.at(-1)?.text).toContain('Are you sure')
+    const r = dispatch(prompt.state, { kind: 'confirmation', confirmed: true }, world)
     expect(r.state.resolveLevel).toBe('shaken')
     expect(r.state.encounterState['revenant']).toBe('shaken')
+  })
+
+  it('cancels a confirmed attack when the player says no', () => {
+    let s = initialStateFor(world)
+    s = dispatch(s, { kind: 'go', direction: 'n' }, world).state
+    const prompt = dispatch(s, { kind: 'verb-target', verb: 'attack', target: { canonical: 'revenant', raw: 'revenant' } }, world)
+    const r = dispatch(prompt.state, { kind: 'confirmation', confirmed: false }, world)
+    expect(r.state.pendingConfirmation).toBeNull()
+    expect(r.state.resolveLevel).toBe('steady')
+    expect(r.state.encounterState['revenant']).toBe('wary')
+    expect(r.appended.at(-1)?.text).toBe('Cancelled.')
   })
 
   it('falls back to defaultWrongVerbNarration for unrecognized verbs', () => {
@@ -129,7 +143,8 @@ describe('encounters — phase advancement', () => {
     s = dispatch(s, { kind: 'go', direction: 'n' }, world).state
     // Force resolve to 'returning' so the next failure retreats.
     s = { ...s, resolveLevel: 'returning' }
-    const r = dispatch(s, { kind: 'verb-target', verb: 'attack', target: { canonical: 'revenant', raw: 'revenant' } }, world)
+    s = dispatch(s, { kind: 'verb-target', verb: 'attack', target: { canonical: 'revenant', raw: 'revenant' } }, world).state
+    const r = dispatch(s, { kind: 'confirmation', confirmed: true }, world)
     expect(r.state.location).toBe('foyer')
     expect(r.appended.some((l) => l.text.includes('stagger back'))).toBe(true)
   })

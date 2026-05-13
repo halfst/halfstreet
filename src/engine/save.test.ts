@@ -13,6 +13,7 @@ const baseState = (overrides: Partial<GameState> = {}): GameState => ({
   encounterState: {},
   lastNoun: null,
   pendingDisambiguation: null,
+  pendingConfirmation: null,
   transcript: [],
   endedWith: null,
   ...overrides,

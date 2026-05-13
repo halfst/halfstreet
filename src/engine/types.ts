@@ -21,6 +21,7 @@ export interface NounRef {
 }
 
 export type ParsedCommand =
+  | { kind: 'confirmation'; confirmed: boolean }
   | { kind: 'verb-only'; verb: Verb | 'look' | 'inventory' | 'wait' | 'listen' }
   | { kind: 'verb-target'; verb: Verb; target: NounRef }
   | { kind: 'verb-target-prep'; verb: Verb; target: NounRef; preposition: string; indirect: NounRef }
@@ -51,6 +52,11 @@ export interface PendingDisambiguation {
   prompt: string
 }
 
+export interface PendingConfirmation {
+  command: ParsedCommand
+  prompt: string
+}
+
 export interface GameState {
   schemaVersion: number
   location: RoomId
@@ -66,6 +72,8 @@ export interface GameState {
   lastNoun: NounRef | null
   /** Pending multi-word disambiguation, set when the parser cannot decide. */
   pendingDisambiguation: PendingDisambiguation | null
+  /** Pending confirmation for dangerous/game-changing commands. */
+  pendingConfirmation: PendingConfirmation | null
   /** Capped at 200 entries; older entries are dropped on append. */
   transcript: TranscriptLine[]
   /** Set true when the player has reached an ending. UI shows ending screen. */
