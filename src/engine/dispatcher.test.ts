@@ -501,22 +501,32 @@ describe('light/extinguish verbs (implicit lighter)', () => {
     expect(texts).toContain('The book is empty.')
   })
 
-  it('burns two segments on wait and extinguishes on the third wait', () => {
+  it('burns one segment on each wait and extinguishes when the last segment expires', () => {
     const world = w()
     let state = initialStateFor(world)
     state = { ...state, inventory: [{ id: 'lamp', state: { lit: true, burn: 6 } }] }
 
     const first = dispatch(state, { kind: 'verb-only', verb: 'wait' }, world)
-    expect(first.state.inventory.find((i) => i.id === 'lamp')?.state['burn']).toBe(4)
+    expect(first.state.inventory.find((i) => i.id === 'lamp')?.state['burn']).toBe(5)
     expect(first.state.inventory.find((i) => i.id === 'lamp')?.state['lit']).toBe(true)
 
     const second = dispatch(first.state, { kind: 'verb-only', verb: 'wait' }, world)
-    expect(second.state.inventory.find((i) => i.id === 'lamp')?.state['burn']).toBe(2)
+    expect(second.state.inventory.find((i) => i.id === 'lamp')?.state['burn']).toBe(4)
 
     const third = dispatch(second.state, { kind: 'verb-only', verb: 'wait' }, world)
-    expect(third.state.inventory.find((i) => i.id === 'lamp')?.state['burn']).toBe(0)
-    expect(third.state.inventory.find((i) => i.id === 'lamp')?.state['lit']).toBe(false)
-    expect(third.appended.map((l) => l.text)).toContain('The flame dies.')
+    expect(third.state.inventory.find((i) => i.id === 'lamp')?.state['burn']).toBe(3)
+
+    const fourth = dispatch(third.state, { kind: 'verb-only', verb: 'wait' }, world)
+    expect(fourth.state.inventory.find((i) => i.id === 'lamp')?.state['burn']).toBe(2)
+
+    const fifth = dispatch(fourth.state, { kind: 'verb-only', verb: 'wait' }, world)
+    expect(fifth.state.inventory.find((i) => i.id === 'lamp')?.state['burn']).toBe(1)
+    expect(fifth.state.inventory.find((i) => i.id === 'lamp')?.state['lit']).toBe(true)
+
+    const sixth = dispatch(fifth.state, { kind: 'verb-only', verb: 'wait' }, world)
+    expect(sixth.state.inventory.find((i) => i.id === 'lamp')?.state['burn']).toBe(0)
+    expect(sixth.state.inventory.find((i) => i.id === 'lamp')?.state['lit']).toBe(false)
+    expect(sixth.appended.map((l) => l.text)).toContain('The flame dies.')
   })
 
   it('burns one segment on movement', () => {

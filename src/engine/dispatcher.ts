@@ -421,7 +421,7 @@ function passOutFromDrunk(state: GameState, world: World, preface: string): Disp
 }
 
 function handleWait(state: GameState, world: World): DispatchResult {
-  const lightTick = advanceLightState(state, 2, world)
+  const lightTick = advanceLightState(state, 1, world)
   return narrate(lightTick.state, [
     { kind: 'narration', text: 'Time passes.' },
     ...lightTick.lines,
