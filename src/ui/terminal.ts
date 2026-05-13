@@ -1,8 +1,9 @@
 import { parse } from '../engine/parser'
 import type { ParserContext } from '../engine/parser'
-import { dispatch, initialStateFor, getItemsInRoom, getLightStatus, LIGHT_TURNS_MAX } from '../engine/dispatcher'
+import { dispatch, initialStateFor, getItemsInRoom, getLightStatus } from '../engine/dispatcher'
 import { saveState, loadState, clearSave } from '../engine/save'
 import { world } from '../world'
+import { DEFAULT_WORLD_MESSAGES, type WorldMessageKey } from '../world/types'
 import type { GameState, TranscriptLine } from '../engine/types'
 import { TRANSCRIPT_CAP } from '../engine/types'
 import { computeChips } from './chips'
@@ -14,24 +15,17 @@ const inputEl = document.querySelector<HTMLInputElement>('[data-mystery-input]')
 const inputDisplayEl = document.querySelector<HTMLSpanElement>('[data-mystery-input-display]')
 const lightMeterEl = document.querySelector<HTMLDivElement>('[data-mystery-light-meter]')
 
-const HELP_TEXT = `You arrive at the address, but you do not remember what has happened. The road behind you is gone...
+const HELP_TEXT = world.game?.helpText ?? `This is a text adventure. Type short commands to act.`
+const UI_FEATURES = world.ui?.features ?? {
+  chips: true,
+  lightMeter: true,
+  typedEffect: true,
+  roomScroll: true,
+}
 
-This is a text adventure. Type short commands to act in the house.
-
-Common commands:
-look                    describe the room again
-n, s, e, w, u, d        move by direction
-take lamp               pick something up
-examine letter          inspect something nearby or held
-read letter             read a readable object
-inventory               see what you carry
-light lamp with matches use one thing with another
-wait                    let the room continue
-undo                    step back once
-restart                 begin again
-theme                   change the terminal colors
-
-Most commands are verb first, then the thing: examine gate, take lamp, use key on door.`
+function message(key: WorldMessageKey): string {
+  return world.messages?.[key] ?? DEFAULT_WORLD_MESSAGES[key]
+}
 
 if (!transcriptEl || !inputEl || !inputDisplayEl) {
   console.error('[halfstreet] terminal mount points missing')
@@ -53,6 +47,7 @@ if (!transcriptEl || !inputEl || !inputDisplayEl) {
   const ROOM_SCROLL_MS = 180
 
   const syncLightMeter = (): void => {
+    if (!UI_FEATURES.lightMeter) return
     if (!lightMeterEl) return
     const status = getLightStatus(state, world)
     lightMeterEl.hidden = !status
@@ -75,8 +70,8 @@ if (!transcriptEl || !inputEl || !inputDisplayEl) {
 
     const leds = document.createElement('div')
     leds.className = 'mystery-light-leds'
-    const turnsLeft = Math.max(0, Math.min(LIGHT_TURNS_MAX, status.turnsLeft))
-    for (let i = 0; i < LIGHT_TURNS_MAX; i++) {
+    const turnsLeft = Math.max(0, Math.min(status.maxTurns, status.turnsLeft))
+    for (let i = 0; i < status.maxTurns; i++) {
       const segment = document.createElement('span')
       segment.className = 'mystery-light-segment'
       const lit = i < turnsLeft
@@ -98,6 +93,7 @@ if (!transcriptEl || !inputEl || !inputDisplayEl) {
   }
 
   function refreshChips(): void {
+    if (!UI_FEATURES.chips) return
     renderChips(computeChips(state, world), (command) => {
       clearIdleHint()
       inputEl!.value = command
@@ -160,6 +156,7 @@ if (!transcriptEl || !inputEl || !inputDisplayEl) {
       inventoryItemIds: s.inventory.map((i) => i.id),
       lastNoun: s.lastNoun,
       awaitingDisambiguation: s.pendingDisambiguation,
+      vocabulary: world.parser,
     }
   }
 
@@ -274,7 +271,7 @@ if (!transcriptEl || !inputEl || !inputDisplayEl) {
   }
 
   const renderAll = (lines: TranscriptLine[], options: { animate?: boolean; scroll?: boolean } = {}): void => {
-    const animate = options.animate ?? true
+    const animate = (options.animate ?? true) && UI_FEATURES.typedEffect
     const shouldScroll = options.scroll ?? true
     const generation = renderGeneration
     renderQueue = renderQueue.then(() => renderLines(lines, animate, shouldScroll, generation)).catch((err) => {
@@ -445,7 +442,7 @@ if (!transcriptEl || !inputEl || !inputDisplayEl) {
         syncEndedUI()
         syncDrunkEffect()
       } else {
-        appendLines([{ kind: 'system', text: 'There is no further back.' }], { scroll: false })
+        appendLines([{ kind: 'system', text: message('no-undo') }], { scroll: false })
       }
       return
     }
@@ -463,7 +460,7 @@ if (!transcriptEl || !inputEl || !inputDisplayEl) {
       const previousLocation = state.location
       const result = dispatch(state, command, world)
       state = result.state
-      const shouldScrollToRoom = command.kind === 'go' && state.location !== previousLocation
+      const shouldScrollToRoom = UI_FEATURES.roomScroll && command.kind === 'go' && state.location !== previousLocation
       renderAll(result.appended, { scroll: shouldScrollToRoom })  // dispatch already pushed these into state.transcript
       saveState(state)
       if (raw.trim().toLowerCase() === 'theme') {

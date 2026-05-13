@@ -2,6 +2,23 @@
 id: root-movement
 startsIn: "[[root-chamber]]"
 initialPhase: shifting
+aliases: [root movement, roots, root, opening]
+onResolved:
+  setFlags:
+    rootsListenedTo: true
+onFailed:
+  narration: failed
+  retreatTo: "[[flooded-passage]]"
+defaultWrongVerbNarration: wrong-verb
+phases:
+  shifting:
+    description: shifting
+    transitions:
+      - verb: listen
+        chipLabel: LISTEN
+        chipCommand: listen
+        narration: listen-resolved
+        to: resolved
 ---
 
 ## shifting

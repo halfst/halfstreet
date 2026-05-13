@@ -2,6 +2,22 @@
 id: garden-procession
 startsIn: "[[garden]]"
 initialPhase: passing
+aliases: [garden procession, procession, lanterns, lantern, lights, hedge]
+onResolved:
+  setFlags:
+    gardenQuiet: true
+onFailed:
+  narration: failed
+  retreatTo: "[[back-door]]"
+defaultWrongVerbNarration: wrong-verb
+phases:
+  passing:
+    description: passing
+    transitions:
+      - verb: wait
+        chipLabel: WAIT
+        narration: wait-resolved
+        to: resolved
 ---
 
 ## passing

@@ -2,6 +2,24 @@
 id: covered-cage
 startsIn: "[[smoking-room]]"
 initialPhase: rustling
+aliases: [covered cage, cage, birdcage, cloth]
+onResolved:
+  setFlags:
+    cageUncovered: true
+onFailed:
+  narration: failed
+  retreatTo: "[[hallway]]"
+defaultWrongVerbNarration: wrong-verb
+phases:
+  rustling:
+    description: rustling
+    transitions:
+      - verb: open
+        target: covered-cage
+        chipLabel: UNCOVER CAGE
+        chipCommand: uncover cage
+        narration: open-covered-cage-resolved
+        to: resolved
 ---
 
 ## rustling

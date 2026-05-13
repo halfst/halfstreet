@@ -2,6 +2,32 @@
 id: child-beneath-well
 startsIn: "[[well-shaft]]"
 initialPhase: climbing
+aliases: [child, well child, child beneath well, barefoot child]
+onResolved:
+  setFlags:
+    childPassedWell: true
+onFailed:
+  narration: failed
+  retreatTo: "[[well]]"
+defaultWrongVerbNarration: wrong-verb
+phases:
+  climbing:
+    description: climbing
+    transitions:
+      - verb: hold
+        target: "[[toy-dog]]"
+        chipLabel: SHOW DOG
+        chipCommand: hold dog
+        requires:
+          item: "[[toy-dog]]"
+        narration: hold-toy-dog-resolved
+        setFlags:
+          woofReturned: true
+        to: resolved
+      - verb: wait
+        chipLabel: WAIT
+        narration: wait-resolved
+        to: resolved
 ---
 
 ## climbing

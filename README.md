@@ -22,6 +22,28 @@ npm run dev       # local dev server
 npm run build     # type-check + production build
 ```
 
+## Make Your Own Game
+
+Halfstreet is currently meant to be forked as a complete Astro app, not consumed
+as a separate engine package. To make a new story, replace the markdown vault in
+`src/world/` and keep the TypeScript runtime in place.
+
+Start with:
+
+- `src/world/game.md` for the title, starting room, starting inventory, ending
+  priority, opening art, help text, and end text.
+- `src/world/parser.md` for command vocabulary and aliases.
+- `src/world/rooms/`, `src/world/items/`, `src/world/encounters/`, and
+  `src/world/endings/` for story content.
+- `src/world/mechanics/` and `src/world/actions/` for configurable rules and
+  interactions.
+- `src/world/ui.md` for page metadata, footer links, and UI feature switches.
+- `src/world/templates/` for starter files.
+
+Run `npm test` after changing world files. The loader validates wikilinks,
+required sections, frontmatter shape, and references between rooms, items,
+encounters, endings, mechanics, and actions.
+
 ## Releases
 
 The footer build number comes from Woodpecker's pipeline number and increments on each CI build.
@@ -42,7 +64,7 @@ Each release script updates `package.json` and `package-lock.json`, creates a re
 
 - `src/engine/` — parser, dispatcher, encounter logic
 - `src/ui/` — terminal renderer, theme, chips
-- `src/world/` — markdown content (rooms, items, encounters, endings)
+- `src/world/` — Obsidian-friendly authoring vault
 - `src/pages/index.astro` — entry page
 
 ## Design docs

@@ -2,6 +2,22 @@
 id: distant-steps
 startsIn: "[[wrong-hallway]]"
 initialPhase: approaching
+aliases: [distant steps, steps, footsteps, hallway]
+onResolved:
+  setFlags:
+    distantStepsPassed: true
+onFailed:
+  narration: failed
+  retreatTo: "[[parlor]]"
+defaultWrongVerbNarration: wrong-verb
+phases:
+  approaching:
+    description: approaching
+    transitions:
+      - verb: wait
+        chipLabel: WAIT
+        narration: wait-resolved
+        to: resolved
 ---
 
 ## approaching

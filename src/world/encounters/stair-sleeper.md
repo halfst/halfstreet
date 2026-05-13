@@ -2,6 +2,22 @@
 id: stair-sleeper
 startsIn: "[[stair-up]]"
 initialPhase: seated
+aliases: [stair sleeper, sleeper, figure, person, body]
+onResolved:
+  setFlags:
+    hallwayShifted: true
+onFailed:
+  narration: failed
+  retreatTo: "[[parlor]]"
+defaultWrongVerbNarration: wrong-verb
+phases:
+  seated:
+    description: seated
+    transitions:
+      - verb: wait
+        chipLabel: WAIT
+        narration: wait-resolved
+        to: resolved
 ---
 
 ## seated

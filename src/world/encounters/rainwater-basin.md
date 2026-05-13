@@ -2,6 +2,31 @@
 id: rainwater-basin
 startsIn: "[[rain-room]]"
 initialPhase: reflecting
+aliases: [rainwater basin, basin, water, rainwater, reflection]
+onResolved:
+  setFlags:
+    rainRoomEntered: true
+    houseAcceptedYou: true
+onFailed:
+  narration: failed
+  retreatTo: "[[wrong-hallway]]"
+defaultWrongVerbNarration: wrong-verb
+phases:
+  reflecting:
+    description: reflecting
+    transitions:
+      - verb: look
+        target: rainwater-basin
+        chipLabel: LOOK BASIN
+        chipCommand: look basin
+        narration: look-resolved
+        to: resolved
+      - verb: examine
+        target: rainwater-basin
+        chipLabel: EXAMINE BASIN
+        chipCommand: examine basin
+        narration: look-resolved
+        to: resolved
 ---
 
 ## reflecting

@@ -46,3 +46,4 @@
 - [ ] BUG: It says the door closes behind you when you enter the lobby, but you can still exit S to the gate.
 - [x] FEATURE: Add a short "typed" effect to the text. Make it look like it's being typed out, if that makes sense, one character at a time. The effect should be brief. 
 - [x] FEATURE: Whenever you change rooms, scroll the text so the name of the room you're in is at the top. Users can scroll up to see the history. This should be an effect where the old text slides up to make room for the new text, and this should happen before the "typed" effect.
+- [ ] Open-source authoring architecture: follow [[open-source-authoring-roadmap]] to move as much story, parser, mechanic, action, and UI configuration as practical into markdown under `src/world` so authors can control it from Obsidian.

@@ -2,6 +2,24 @@
 id: piano-echo
 startsIn: "[[music-room]]"
 initialPhase: listening
+aliases: [piano echo, piano, note, key]
+onResolved:
+  setFlags:
+    musicSolved: true
+onFailed:
+  narration: failed
+  retreatTo: "[[hallway]]"
+defaultWrongVerbNarration: wrong-verb
+phases:
+  listening:
+    description: listening
+    transitions:
+      - verb: play
+        target: piano-echo
+        chipLabel: PLAY NOTE
+        chipCommand: play note
+        narration: play-piano-echo-resolved
+        to: resolved
 ---
 
 ## listening

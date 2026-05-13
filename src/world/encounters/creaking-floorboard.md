@@ -2,6 +2,31 @@
 id: creaking-floorboard
 startsIn: "[[drunk-landing]]"
 initialPhase: creaking
+aliases: [creaking floorboard, floorboard, board, creak, secret door, faceless man, man, voice]
+defaultWrongVerbNarration: wrong-verb
+phases:
+  creaking:
+    description: creaking
+    transitions:
+      - verb: listen
+        chipLabel: LISTEN
+        chipCommand: listen
+        narration: listen-resolved
+        setFlags:
+          drunkSecretFound: true
+          facelessManMet: true
+          houseDebtNamed: true
+        to: resolved
+      - verb: open
+        target: creaking-floorboard
+        chipLabel: OPEN BOARD
+        chipCommand: open floorboard
+        narration: listen-resolved
+        setFlags:
+          drunkSecretFound: true
+          facelessManMet: true
+          houseDebtNamed: true
+        to: resolved
 ---
 
 ## creaking

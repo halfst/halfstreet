@@ -40,7 +40,7 @@ export interface ItemInstance {
 }
 
 export type EncounterPhase = string  // phase names are encounter-specific
-export type EndingId = 'true' | 'wrong' | 'bad' | 'replacement' | 'mercy'
+export type EndingId = string
 
 export interface TranscriptLine {
   kind: 'narration' | 'player' | 'system' | 'ending'
@@ -60,6 +60,7 @@ export interface PendingConfirmation {
 
 export interface GameState {
   schemaVersion: number
+  transcriptCap?: number
   location: RoomId
   inventory: ItemInstance[]
   /** Per-room state: visited, items dropped, descriptive flags. */

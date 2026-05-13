@@ -92,6 +92,23 @@ const world: World = {
   },
 }
 
+function withResolveMechanic(overrides: Partial<NonNullable<NonNullable<World['mechanics']>['resolve']>>): World {
+  return {
+    ...world,
+    mechanics: {
+      resolve: {
+        enabled: true,
+        handler: 'resolve',
+        ladder: ['steady', 'shaken', 'reeling', 'returning'],
+        wrongVerbCost: 1,
+        safeRooms: { recoverySteps: 1 },
+        failure: { retreatAt: 'returning', afterRetreat: 'shaken' },
+        ...overrides,
+      },
+    },
+  }
+}
+
 describe('encounters — phase advancement', () => {
   it('triggers an encounter on entering its room', () => {
     let s = initialStateFor(world)
@@ -155,6 +172,34 @@ describe('encounters — phase advancement', () => {
     s = dispatch(s, { kind: 'go', direction: 'n' }, world).state
     s = dispatch(s, { kind: 'go', direction: 's' }, world).state
     expect(s.resolveLevel).toBe('steady')
+  })
+
+  it('uses markdown resolve config for wrong-verb cost', () => {
+    const configured = withResolveMechanic({ wrongVerbCost: 2 })
+    let s = initialStateFor(configured)
+    s = dispatch(s, { kind: 'go', direction: 'n' }, configured).state
+    const r = dispatch(s, { kind: 'verb-target', verb: 'push', target: { canonical: 'revenant', raw: 'revenant' } }, configured)
+    expect(r.state.resolveLevel).toBe('reeling')
+  })
+
+  it('uses markdown resolve config for safe-room recovery', () => {
+    const configured = withResolveMechanic({ safeRooms: { recoverySteps: 2 } })
+    let s = initialStateFor(configured)
+    s = { ...s, resolveLevel: 'reeling' }
+    s = dispatch(s, { kind: 'go', direction: 'n' }, configured).state
+    s = dispatch(s, { kind: 'go', direction: 's' }, configured).state
+    expect(s.resolveLevel).toBe('steady')
+  })
+
+  it('uses markdown resolve config for post-retreat level', () => {
+    const configured = withResolveMechanic({ failure: { retreatAt: 'returning', afterRetreat: 'reeling' } })
+    let s = initialStateFor(configured)
+    s = dispatch(s, { kind: 'go', direction: 'n' }, configured).state
+    s = { ...s, resolveLevel: 'returning' }
+    s = dispatch(s, { kind: 'verb-target', verb: 'attack', target: { canonical: 'revenant', raw: 'revenant' } }, configured).state
+    const r = dispatch(s, { kind: 'confirmation', confirmed: true }, configured)
+    expect(r.state.location).toBe('foyer')
+    expect(r.state.resolveLevel).toBe('reeling')
   })
 
   it('allows a required item to be the direct target in a target-preposition encounter command', () => {

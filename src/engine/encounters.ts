@@ -2,6 +2,17 @@ import type { World } from '../world/types'
 import type { GameState, ParsedCommand, DispatchResult, TranscriptLine, ResolveLevel } from './types'
 import { TRANSCRIPT_CAP, RESOLVE_LEVELS } from './types'
 
+type ActiveResolveMechanic = NonNullable<NonNullable<World['mechanics']>['resolve']>
+
+const DEFAULT_RESOLVE_MECHANIC: ActiveResolveMechanic = {
+  enabled: true,
+  handler: 'resolve',
+  ladder: RESOLVE_LEVELS,
+  wrongVerbCost: 1,
+  safeRooms: { recoverySteps: 1 },
+  failure: { retreatAt: 'returning', afterRetreat: 'shaken' },
+}
+
 function append(state: GameState, lines: TranscriptLine[]): GameState {
   const transcript = [...state.transcript, ...lines]
   return { ...state, transcript: transcript.slice(-TRANSCRIPT_CAP) }
@@ -38,11 +49,26 @@ export function maybeTriggerEncounter(state: GameState, world: World): DispatchR
   return narrate(next, [{ kind: 'narration', text: phase.description }])
 }
 
-function bumpResolve(level: ResolveLevel, cost: 0 | 1 | 2 | undefined): ResolveLevel {
-  if (!cost) return level
-  const idx = RESOLVE_LEVELS.indexOf(level)
-  const newIdx = Math.min(RESOLVE_LEVELS.length - 1, idx + cost)
-  return RESOLVE_LEVELS[newIdx]!
+function resolveMechanic(world: World): ActiveResolveMechanic {
+  return world.mechanics?.resolve ?? DEFAULT_RESOLVE_MECHANIC
+}
+
+function bumpResolve(level: ResolveLevel, cost: 0 | 1 | 2 | undefined, world: World): ResolveLevel {
+  const mechanic = resolveMechanic(world)
+  if (!mechanic.enabled || !cost) return level
+  const idx = mechanic.ladder.indexOf(level)
+  if (idx < 0) return level
+  const newIdx = Math.min(mechanic.ladder.length - 1, idx + cost)
+  return mechanic.ladder[newIdx]!
+}
+
+function shouldRetreat(level: ResolveLevel, cost: 0 | 1 | 2 | undefined, world: World): boolean {
+  const mechanic = resolveMechanic(world)
+  return mechanic.enabled && !!cost && level === mechanic.failure.retreatAt
+}
+
+function afterRetreatResolve(world: World): ResolveLevel {
+  return resolveMechanic(world).failure.afterRetreat
 }
 
 export interface EncounterResolution {
@@ -103,12 +129,13 @@ export function applyVerbToEncounter(
   if (!transition) {
     // Wrong verb — apply default narration and resolve cost.
     if (!verb || (targetId !== null && targetId !== encId)) return null  // verb is unrelated to this encounter
-    const newResolve = bumpResolve(state.resolveLevel, 1)
-    if (state.resolveLevel === 'returning') {
+    const wrongVerbCost = resolveMechanic(world).wrongVerbCost
+    const newResolve = bumpResolve(state.resolveLevel, wrongVerbCost, world)
+    if (shouldRetreat(state.resolveLevel, wrongVerbCost, world)) {
       // Retreat.
       const retreat = def.onFailed
       if (retreat) {
-        const next: GameState = { ...state, location: retreat.retreatTo, resolveLevel: 'shaken' }
+        const next: GameState = { ...state, location: retreat.retreatTo, resolveLevel: afterRetreatResolve(world) }
         const dest = world.rooms[retreat.retreatTo]
         const lines: TranscriptLine[] = [
           { kind: 'narration', text: retreat.narration },
@@ -125,10 +152,10 @@ export function applyVerbToEncounter(
   }
 
   // Right verb — but if it has a resolve cost and player is already at 'returning', retreat.
-  if (transition.resolveCost && transition.resolveCost > 0 && state.resolveLevel === 'returning') {
+  if (shouldRetreat(state.resolveLevel, transition.resolveCost, world)) {
     const retreat = def.onFailed
     if (retreat) {
-      const next: GameState = { ...state, location: retreat.retreatTo, resolveLevel: 'shaken' }
+      const next: GameState = { ...state, location: retreat.retreatTo, resolveLevel: afterRetreatResolve(world) }
       const dest = world.rooms[retreat.retreatTo]
       const lines: TranscriptLine[] = [
         { kind: 'narration', text: transition.narration },
@@ -142,7 +169,7 @@ export function applyVerbToEncounter(
   // Right verb — narrate and transition.
   let next: GameState = { ...state }
   if (transition.resolveCost) {
-    next = { ...next, resolveLevel: bumpResolve(next.resolveLevel, transition.resolveCost) }
+    next = { ...next, resolveLevel: bumpResolve(next.resolveLevel, transition.resolveCost, world) }
   }
 
   if (transition.to === 'resolved') {
@@ -158,7 +185,7 @@ export function applyVerbToEncounter(
       const dest = world.rooms[retreat.retreatTo]
       const newEncState = { ...next.encounterState }
       delete newEncState[encId]
-      next = { ...next, location: retreat.retreatTo, encounterState: newEncState, resolveLevel: 'shaken' }
+      next = { ...next, location: retreat.retreatTo, encounterState: newEncState, resolveLevel: afterRetreatResolve(world) }
       const lines: TranscriptLine[] = [
         { kind: 'narration', text: transition.narration },
         { kind: 'narration', text: retreat.narration },

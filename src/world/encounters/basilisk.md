@@ -2,6 +2,34 @@
 id: basilisk
 startsIn: "[[chapel]]"
 initialPhase: sleeping
+aliases: [basilisk, creature, eye, altar, coil]
+onResolved:
+  setFlags:
+    basiliskSpared: true
+onFailed:
+  narration: failed
+  retreatTo: "[[vault]]"
+defaultWrongVerbNarration: wrong-verb
+phases:
+  sleeping:
+    description: sleeping
+    transitions:
+      - verb: pour
+        target: silver-vial
+        chipLabel: POUR VIAL
+        chipCommand: pour vial on basilisk
+        requires:
+          item: "[[silver-vial]]"
+        narration: pour-vial-resolved
+        to: resolved
+      - verb: use
+        target: basilisk
+        chipLabel: USE VIAL
+        chipCommand: use basilisk with vial
+        requires:
+          item: "[[silver-vial]]"
+        narration: pour-vial-resolved
+        to: resolved
 ---
 
 ## sleeping

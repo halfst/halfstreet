@@ -2,6 +2,24 @@
 id: portrait-woman
 startsIn: "[[burial-gallery]]"
 initialPhase: watching
+aliases: [portrait woman, woman, portrait, portraits, veil, funeral veil]
+onResolved:
+  setFlags:
+    familyResemblanceSeen: true
+onFailed:
+  narration: failed
+  retreatTo: "[[root-chamber]]"
+defaultWrongVerbNarration: wrong-verb
+phases:
+  watching:
+    description: watching
+    transitions:
+      - verb: examine
+        target: portrait-woman
+        chipLabel: EXAMINE PORTRAITS
+        chipCommand: examine portraits
+        narration: examine-portraits-resolved
+        to: resolved
 ---
 
 ## watching

@@ -1,5 +1,14 @@
 import type { ParsedCommand, NounRef, Verb, MetaVerb, Direction, PendingDisambiguation } from './types'
 
+export interface ParserVocabulary {
+  directions: Record<Direction, string[]>
+  prepositions: string[]
+  stopWords: string[]
+  noTargetVerbs: Verb[]
+  metaVerbs: MetaVerb[]
+  verbs: Partial<Record<Verb, string[]>>
+}
+
 export interface ParserContext {
   /** All item ids that exist in the world (for noun matching). */
   knownItems: string[]
@@ -11,64 +20,115 @@ export interface ParserContext {
   inventoryItemIds: string[]
   lastNoun: NounRef | null
   awaitingDisambiguation: PendingDisambiguation | null
+  vocabulary?: ParserVocabulary
 }
 
-/** Verb synonym table: each entry maps an alias to the canonical Verb. */
-const VERB_SYNONYMS: Record<string, Verb> = {
-  // movement
-  go: 'go', walk: 'go', move: 'go',
-  // perception
-  look: 'look', l: 'look',
-  examine: 'examine', x: 'examine', inspect: 'examine',
-  // inventory
-  inventory: 'inventory', inv: 'inventory', i: 'inventory',
-  // manipulation
-  take: 'take', get: 'take', grab: 'take', 'pick up': 'take',
-  drop: 'drop', put: 'drop', leave: 'drop',
-  use: 'use', combine: 'use',
-  open: 'open', close: 'close',
-  drink: 'drink', sip: 'drink',
-  read: 'read', light: 'light', extinguish: 'extinguish', douse: 'extinguish',
-  attack: 'attack', kill: 'attack', fight: 'attack', strike: 'attack',
-  hold: 'hold', show: 'hold',
-  push: 'push', press: 'push',
-  pull: 'pull',
-  cut: 'cut', trim: 'cut',
-  play: 'play',
-  listen: 'listen',
-  pour: 'pour',
-  uncover: 'open',
-  wait: 'wait', z: 'wait',
+export const SUPPORTED_VERBS: Verb[] = [
+  'go',
+  'look',
+  'examine',
+  'take',
+  'drop',
+  'use',
+  'open',
+  'close',
+  'read',
+  'light',
+  'extinguish',
+  'attack',
+  'inventory',
+  'wait',
+  'hold',
+  'push',
+  'pull',
+  'cut',
+  'play',
+  'listen',
+  'pour',
+  'drink',
+]
+
+export const SUPPORTED_META_VERBS: MetaVerb[] = ['restart', 'undo', 'hint', 'save', 'quit', 'theme']
+
+export const DEFAULT_PARSER_VOCABULARY: ParserVocabulary = {
+  directions: {
+    n: ['n', 'north'],
+    s: ['s', 'south'],
+    e: ['e', 'east'],
+    w: ['w', 'west'],
+    u: ['u', 'up'],
+    d: ['d', 'down'],
+  },
+  prepositions: ['with', 'on', 'in', 'to'],
+  stopWords: ['at', 'the', 'a', 'an'],
+  noTargetVerbs: ['look', 'inventory', 'wait', 'listen'],
+  metaVerbs: ['restart', 'undo', 'hint', 'save', 'quit', 'theme'],
+  verbs: {
+    go: ['go', 'walk', 'move'],
+    look: ['look', 'l'],
+    examine: ['examine', 'x', 'inspect'],
+    inventory: ['inventory', 'inv', 'i'],
+    take: ['take', 'get', 'grab', 'pick up'],
+    drop: ['drop', 'put', 'leave'],
+    use: ['use', 'combine'],
+    open: ['open', 'uncover'],
+    close: ['close'],
+    drink: ['drink', 'sip'],
+    read: ['read'],
+    light: ['light'],
+    extinguish: ['extinguish', 'douse'],
+    attack: ['attack', 'kill', 'fight', 'strike'],
+    hold: ['hold', 'show'],
+    push: ['push', 'press'],
+    pull: ['pull'],
+    cut: ['cut', 'trim'],
+    play: ['play'],
+    listen: ['listen'],
+    pour: ['pour'],
+    wait: ['wait', 'z'],
+  },
 }
 
-const DIRECTION_WORDS: Record<string, Direction> = {
-  n: 'n', north: 'n',
-  s: 's', south: 's',
-  e: 'e', east: 'e',
-  w: 'w', west: 'w',
-  u: 'u', up: 'u',
-  d: 'd', down: 'd',
+interface CompiledVocabulary {
+  directionWords: Record<string, Direction>
+  metaVerbs: Record<string, MetaVerb>
+  verbSynonyms: Record<string, Verb>
+  multiWordVerbs: string[]
+  noTargetVerbs: Set<string>
+  stopWords: Set<string>
+  prepositions: Set<string>
 }
 
-const META_VERBS: Record<string, MetaVerb> = {
-  restart: 'restart',
-  undo: 'undo',
-  hint: 'hint',
-  save: 'save',
-  quit: 'quit',
-  theme: 'theme',
+function normalizeAlias(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, ' ')
 }
 
-/** Verbs that legally take no target. */
-const VERB_ONLY_VERBS = new Set<string>(['look', 'inventory', 'wait', 'listen'])
+function compileVocabulary(vocabulary: ParserVocabulary): CompiledVocabulary {
+  const directionWords: Record<string, Direction> = {}
+  for (const [direction, aliases] of Object.entries(vocabulary.directions) as [Direction, string[]][]) {
+    for (const alias of aliases) directionWords[normalizeAlias(alias)] = direction
+  }
 
-/** Two-word verb prefixes (e.g. "pick up X"). */
-const TWO_WORD_VERBS = ['pick up']
+  const metaVerbs: Record<string, MetaVerb> = {}
+  for (const verb of vocabulary.metaVerbs) metaVerbs[normalizeAlias(verb)] = verb
 
-/** Leading stop-words stripped from the noun phrase before matching. */
-const STOP_WORDS = new Set(['at', 'the', 'a', 'an'])
+  const verbSynonyms: Record<string, Verb> = {}
+  for (const [verb, aliases] of Object.entries(vocabulary.verbs) as [Verb, string[]][]) {
+    for (const alias of aliases) verbSynonyms[normalizeAlias(alias)] = verb
+  }
 
-const PREPOSITIONS = new Set(['with', 'on', 'in', 'to'])
+  return {
+    directionWords,
+    metaVerbs,
+    verbSynonyms,
+    multiWordVerbs: Object.keys(verbSynonyms)
+      .filter((alias) => alias.includes(' '))
+      .sort((a, b) => b.split(' ').length - a.split(' ').length),
+    noTargetVerbs: new Set(vocabulary.noTargetVerbs),
+    stopWords: new Set(vocabulary.stopWords.map(normalizeAlias)),
+    prepositions: new Set(vocabulary.prepositions.map(normalizeAlias)),
+  }
+}
 
 function resolveNoun(rawTokens: string[], ctx: ParserContext): { id: string; alias: string } | null {
   const phrase = rawTokens.join(' ')
@@ -90,19 +150,19 @@ function tokenize(input: string): string[] {
   return input.trim().toLowerCase().split(/\s+/).filter(Boolean)
 }
 
-function matchTwoWordVerb(tokens: string[]): { verb: Verb; rest: string[] } | null {
-  if (tokens.length < 2) return null
-  const head = tokens.slice(0, 2).join(' ')
-  for (const phrase of TWO_WORD_VERBS) {
-    if (phrase === head) {
-      const verb = VERB_SYNONYMS[phrase]
-      if (verb) return { verb, rest: tokens.slice(2) }
+function matchMultiWordVerb(tokens: string[], vocabulary: CompiledVocabulary): { verb: Verb; rest: string[] } | null {
+  for (const phrase of vocabulary.multiWordVerbs) {
+    const phraseTokens = phrase.split(' ')
+    if (tokens.length >= phraseTokens.length && tokens.slice(0, phraseTokens.length).join(' ') === phrase) {
+      const verb = vocabulary.verbSynonyms[phrase]
+      if (verb) return { verb, rest: tokens.slice(phraseTokens.length) }
     }
   }
   return null
 }
 
 export function parse(rawInput: string, ctx: ParserContext): ParsedCommand {
+  const vocabulary = compileVocabulary(ctx.vocabulary ?? DEFAULT_PARSER_VOCABULARY)
   const trimmed = rawInput.trim()
   if (!trimmed) return { kind: 'unknown', raw: '', reason: 'malformed' }
 
@@ -117,19 +177,14 @@ export function parse(rawInput: string, ctx: ParserContext): ParsedCommand {
   }
 
   // Meta-commands take precedence (single-word).
-  if (META_VERBS[head] && tokens.length === 1) {
-    return { kind: 'meta', verb: META_VERBS[head]! }
+  if (vocabulary.metaVerbs[head] && tokens.length === 1) {
+    return { kind: 'meta', verb: vocabulary.metaVerbs[head]! }
   }
 
   // Direction shortcuts: "n", "north", "go n", "go north".
-  if (DIRECTION_WORDS[head] && tokens.length === 1) {
-    return { kind: 'go', direction: DIRECTION_WORDS[head]! }
+  if (vocabulary.directionWords[head] && tokens.length === 1) {
+    return { kind: 'go', direction: vocabulary.directionWords[head]! }
   }
-  if (head === 'go' && tokens.length === 2) {
-    const dir = DIRECTION_WORDS[tokens[1]!]
-    if (dir) return { kind: 'go', direction: dir }
-  }
-
   // Disambiguation reply: a single-word answer matching one of the candidates.
   // Must be checked before verb resolution so "brass" / "iron" etc. are caught.
   if (ctx.awaitingDisambiguation && tokens.length === 1) {
@@ -144,15 +199,15 @@ export function parse(rawInput: string, ctx: ParserContext): ParsedCommand {
     }
   }
 
-  // Two-word verb (e.g. "pick up X").
-  const twoWord = matchTwoWordVerb(tokens)
+  // Multi-word verb aliases (e.g. "pick up X").
+  const twoWord = matchMultiWordVerb(tokens, vocabulary)
   let verb: Verb | undefined
   let rest: string[]
   if (twoWord) {
     verb = twoWord.verb
     rest = twoWord.rest
   } else {
-    verb = VERB_SYNONYMS[head]
+    verb = vocabulary.verbSynonyms[head]
     rest = tokens.slice(1)
   }
 
@@ -160,26 +215,31 @@ export function parse(rawInput: string, ctx: ParserContext): ParsedCommand {
     return { kind: 'unknown', raw: trimmed, reason: 'unknown-verb' }
   }
 
+  if (verb === 'go' && rest.length === 1) {
+    const dir = vocabulary.directionWords[rest[0]!]
+    if (dir) return { kind: 'go', direction: dir }
+  }
+
   // Strip leading stop-words from the noun phrase (e.g. "at", "the", "a", "an").
-  while (rest.length > 0 && STOP_WORDS.has(rest[0]!)) {
+  while (rest.length > 0 && vocabulary.stopWords.has(rest[0]!)) {
     rest = rest.slice(1)
   }
 
   if (rest.length === 0) {
-    if (VERB_ONLY_VERBS.has(verb)) {
+    if (vocabulary.noTargetVerbs.has(verb)) {
       return { kind: 'verb-only', verb: verb as 'look' | 'inventory' | 'wait' | 'listen' }
     }
     return { kind: 'unknown', raw: trimmed, reason: 'malformed' }
   }
 
   // Detect a preposition splitting target | indirect.
-  const prepIdx = rest.findIndex((tok) => PREPOSITIONS.has(tok))
+  const prepIdx = rest.findIndex((tok) => vocabulary.prepositions.has(tok))
   if (prepIdx > 0 && prepIdx < rest.length - 1) {
     const targetTokens = rest.slice(0, prepIdx)
     const prep = rest[prepIdx]!
     let indirectTokens = rest.slice(prepIdx + 1)
     // Strip stop-words at the head of the indirect phrase too ("on the table").
-    while (indirectTokens.length > 0 && STOP_WORDS.has(indirectTokens[0]!)) {
+    while (indirectTokens.length > 0 && vocabulary.stopWords.has(indirectTokens[0]!)) {
       indirectTokens = indirectTokens.slice(1)
     }
     if (indirectTokens.length > 0) {

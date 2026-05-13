@@ -2,6 +2,26 @@
 id: reflection
 startsIn: "[[flooded-passage]]"
 initialPhase: following
+aliases: [reflection, water, black water, face, reflected figure]
+onResolved:
+  setFlags:
+    reflectionObscured: true
+onFailed:
+  narration: failed
+  retreatTo: "[[ossuary]]"
+defaultWrongVerbNarration: wrong-verb
+phases:
+  following:
+    description: following
+    transitions:
+      - verb: use
+        target: reflection
+        chipLabel: USE SHEET
+        chipCommand: use water with sheet
+        requires:
+          item: "[[damp-sheet]]"
+        narration: obscure-water-resolved
+        to: resolved
 ---
 
 ## following

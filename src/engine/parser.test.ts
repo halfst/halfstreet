@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { parse } from './parser'
-import type { ParserContext } from './parser'
+import type { ParserContext, ParserVocabulary } from './parser'
 
 const emptyCtx: ParserContext = {
   knownItems: [],
@@ -92,6 +92,45 @@ describe('parser — unknown input', () => {
 })
 
 describe('parser — verb + target', () => {
+  it('uses vocabulary supplied by world markdown', () => {
+    const vocabulary: ParserVocabulary = {
+      directions: {
+        n: ['n', 'northward'],
+        s: ['s'],
+        e: ['e'],
+        w: ['w'],
+        u: ['u'],
+        d: ['d'],
+      },
+      prepositions: ['beside'],
+      stopWords: ['the'],
+      noTargetVerbs: ['look'],
+      metaVerbs: ['restart'],
+      verbs: {
+        go: ['go'],
+        look: ['look', 'observe'],
+        take: ['take hold of'],
+      },
+    }
+    const ctx: ParserContext = {
+      knownItems: ['lamp'],
+      knownEncounters: [],
+      visibleNouns: [{ id: 'lamp', aliases: ['lamp'] }],
+      inventoryItemIds: [],
+      lastNoun: null,
+      awaitingDisambiguation: null,
+      vocabulary,
+    }
+    expect(parse('observe', ctx)).toEqual({ kind: 'verb-only', verb: 'look' })
+    expect(parse('northward', ctx)).toEqual({ kind: 'go', direction: 'n' })
+    expect(parse('go northward', ctx)).toEqual({ kind: 'go', direction: 'n' })
+    expect(parse('take hold of the lamp', ctx)).toEqual({
+      kind: 'verb-target',
+      verb: 'take',
+      target: { canonical: 'lamp', raw: 'lamp' },
+    })
+  })
+
   it('recognizes slice-two encounter verbs', () => {
     const ctx: ParserContext = {
       knownItems: [],

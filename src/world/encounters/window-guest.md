@@ -2,6 +2,24 @@
 id: window-guest
 startsIn: "[[dining-room]]"
 initialPhase: standing-outside
+aliases: [guest, window guest, curtains, curtain, window]
+onResolved:
+  setFlags:
+    curtainsClosed: true
+onFailed:
+  narration: failed
+  retreatTo: "[[hallway]]"
+defaultWrongVerbNarration: wrong-verb
+phases:
+  standing-outside:
+    description: standing-outside
+    transitions:
+      - verb: close
+        target: window-guest
+        chipLabel: CLOSE CURTAINS
+        chipCommand: close curtains
+        narration: close-window-guest-resolved
+        to: resolved
 ---
 
 ## standing-outside

@@ -2,6 +2,34 @@
 id: ivy-figure
 startsIn: "[[conservatory]]"
 initialPhase: hidden
+aliases: [ivy figure, figure, ivy, vines, vine]
+onResolved:
+  setFlags:
+    conservatoryVinesCut: true
+onFailed:
+  narration: failed
+  retreatTo: "[[dining-room]]"
+defaultWrongVerbNarration: wrong-verb
+phases:
+  hidden:
+    description: hidden
+    transitions:
+      - verb: cut
+        target: ivy-figure
+        chipLabel: CUT VINES
+        chipCommand: cut vines
+        requires:
+          item: "[[pruning-shears]]"
+        narration: cut-ivy-figure-resolved
+        to: resolved
+      - verb: use
+        target: ivy-figure
+        chipLabel: USE SHEARS
+        chipCommand: use vines with shears
+        requires:
+          item: "[[pruning-shears]]"
+        narration: cut-ivy-figure-resolved
+        to: resolved
 ---
 
 ## hidden

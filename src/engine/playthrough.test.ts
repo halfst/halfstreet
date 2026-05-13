@@ -30,6 +30,7 @@ function ctxFor(state: GameState): ParserContext {
     inventoryItemIds: state.inventory.map((i) => i.id),
     lastNoun: state.lastNoun,
     awaitingDisambiguation: state.pendingDisambiguation,
+    vocabulary: world.parser,
   }
 }
 

@@ -1,10 +1,47 @@
-import type { World } from '../world/types'
-import type { GameState, ParsedCommand, DispatchResult, ItemInstance, TranscriptLine } from './types'
-import { SCHEMA_VERSION, TRANSCRIPT_CAP } from './types'
+import { DEFAULT_WORLD_MESSAGES, type DeclarativeAction, type LightMechanicMessageKey, type World, type WorldMessageKey } from '../world/types'
+import type { GameState, ParsedCommand, DispatchResult, ItemInstance, TranscriptLine, ResolveLevel } from './types'
+import { SCHEMA_VERSION, TRANSCRIPT_CAP, RESOLVE_LEVELS } from './types'
 import { applyVerbToEncounter, maybeTriggerEncounter } from './encounters'
 
-export const LIGHT_TURNS_MAX = 6
-const DRUNK_TURNS_MAX = 20
+type ActiveLightMechanic = NonNullable<NonNullable<World['mechanics']>['light']>
+type ActiveResolveMechanic = NonNullable<NonNullable<World['mechanics']>['resolve']>
+
+const DEFAULT_LIGHT_MECHANIC: ActiveLightMechanic = {
+  enabled: true,
+  handler: 'light',
+  maxTurns: 6,
+  burnOn: ['move', 'wait'],
+  stateKeys: { lit: 'lit', burn: 'burn' },
+  ui: { meter: true, icon: 'candle' },
+  messages: {},
+}
+const DEFAULT_RESOLVE_MECHANIC: ActiveResolveMechanic = {
+  enabled: true,
+  handler: 'resolve',
+  ladder: RESOLVE_LEVELS,
+  wrongVerbCost: 1,
+  safeRooms: { recoverySteps: 1 },
+  failure: { retreatAt: 'returning', afterRetreat: 'shaken' },
+}
+const DEFAULT_DRUNK_ACTION: DeclarativeAction = {
+  id: 'drink-whiskey',
+  verbs: ['drink'],
+  handler: 'drunk-transition',
+  requires: { allHeld: ['whiskey'] },
+  consumes: { inventory: ['whiskey'] },
+  drunkTransition: {
+    destinationRoom: 'drunk-hall',
+    maxMoves: 20,
+    wakeRoom: 'foyer',
+    resetRoom: 'kitchen',
+  },
+  messages: {
+    success: 'You drink from the bottle. It tastes of smoke, sugar, and rainwater left too long in a pipe.',
+    secretFoundPassOut: 'The faceless man steps backward into the dark. The floor rises under you, or you fall toward it.',
+    tooManyMovesPassOut: 'The rooms keep turning until they become one room. Then even that room is gone.',
+    reset: 'The bottle is not with you. Somewhere in the kitchen, it is half full again.',
+  },
+}
 
 export interface LightStatus {
   itemId: string
@@ -13,13 +50,34 @@ export interface LightStatus {
   maxTurns: number
 }
 
-const HALFSTREET_ASCII = String.raw`
- _   _       _  __     ____  _                 _
-| | | | __ _| |/ _|   / ___|| |_ _ __ ___  ___| |_
-| |_| |/ _\` | | |_    \___ \| __| '__/ _ \/ _ \ __|
-|  _  | (_| | |  _|    ___) | |_| | |  __/  __/ |_
-|_| |_|\__,_|_|_|     |____/ \__|_|  \___|\___|\__|
-`.trim()
+function message(world: World, key: WorldMessageKey): string {
+  return world.messages?.[key] ?? DEFAULT_WORLD_MESSAGES[key]
+}
+
+function lightMechanic(world: World): ActiveLightMechanic {
+  return world.mechanics?.light ?? DEFAULT_LIGHT_MECHANIC
+}
+
+function resolveMechanic(world: World): ActiveResolveMechanic {
+  return world.mechanics?.resolve ?? DEFAULT_RESOLVE_MECHANIC
+}
+
+function drunkAction(world: World): DeclarativeAction {
+  return Object.values(world.actions ?? {}).find((action) => action.handler === 'drunk-transition') ?? DEFAULT_DRUNK_ACTION
+}
+
+function recoverResolve(level: ResolveLevel, world: World): ResolveLevel {
+  const mechanic = resolveMechanic(world)
+  if (!mechanic.enabled || mechanic.safeRooms.recoverySteps === 0) return level
+  const idx = mechanic.ladder.indexOf(level)
+  if (idx <= 0) return level
+  return mechanic.ladder[Math.max(0, idx - mechanic.safeRooms.recoverySteps)] ?? level
+}
+
+function lightMessage(world: World, key: LightMechanicMessageKey, fallback: WorldMessageKey): string {
+  const mechanic = lightMechanic(world)
+  return mechanic?.messages?.[key] ?? message(world, fallback)
+}
 
 export function initialStateFor(world: World): GameState {
   const startingRoom = world.rooms[world.startingRoom]
@@ -32,13 +90,14 @@ export function initialStateFor(world: World): GameState {
   })
 
   const opening: TranscriptLine[] = [
-    { kind: 'system', text: HALFSTREET_ASCII },
+    ...(world.game?.openingArt ? [{ kind: 'system' as const, text: world.game.openingArt }] : []),
     { kind: 'system', text: startingRoom.title },
     { kind: 'narration', text: startingRoom.descriptions.firstVisit },
   ]
 
   return {
     schemaVersion: SCHEMA_VERSION,
+    transcriptCap: world.game?.transcriptCap,
     location: world.startingRoom,
     inventory,
     roomState: { [world.startingRoom]: { visited: true } },
@@ -54,17 +113,20 @@ export function initialStateFor(world: World): GameState {
 }
 
 export function getLightStatus(state: GameState, world: World): LightStatus | null {
+  const mechanic = lightMechanic(world)
+  if (!mechanic?.enabled || mechanic.ui?.meter === false) return null
+
   let fallback: LightStatus | null = null
   for (const inst of state.inventory) {
     const def = world.items[inst.id]
     if (!def?.lightable) continue
-    const lit = inst.state['lit'] === true
-    const turnsLeft = lit ? getLightTurnsLeft(inst) : 0
+    const lit = inst.state[mechanic.stateKeys.lit] === true
+    const turnsLeft = lit ? getLightTurnsLeft(inst, world) : 0
     const status = {
       itemId: inst.id,
       lit,
       turnsLeft,
-      maxTurns: LIGHT_TURNS_MAX,
+      maxTurns: mechanic.maxTurns,
     }
     if (lit) return status
     fallback = fallback ?? status
@@ -74,7 +136,8 @@ export function getLightStatus(state: GameState, world: World): LightStatus | nu
 
 function append(state: GameState, lines: TranscriptLine[]): GameState {
   const transcript = [...state.transcript, ...lines]
-  return { ...state, transcript: transcript.slice(-TRANSCRIPT_CAP) }
+  const cap = state.transcriptCap ?? TRANSCRIPT_CAP
+  return { ...state, transcript: transcript.slice(-cap) }
 }
 
 export function getItemsInRoom(state: GameState, world: World, roomId: string): string[] {
@@ -94,11 +157,10 @@ function setRoomFlag(state: GameState, roomId: string, key: string, value: strin
   }
 }
 
-const ENDING_PRIORITY = ['mercy', 'true', 'replacement', 'bad', 'wrong'] as const
-
 function evaluateEndings(state: GameState, world: World): GameState | null {
   if (state.endedWith) return null
-  for (const id of ENDING_PRIORITY) {
+  const priority = world.endingPriority ?? Object.keys(world.endings)
+  for (const id of priority) {
     const ending = world.endings[id]
     if (!ending) continue
     const flags = ending.whenFlags
@@ -145,11 +207,11 @@ export function dispatch(state: GameState, command: ParsedCommand, world: World,
   if (command.kind === 'confirmation') {
     const pending = state.pendingConfirmation
     if (!pending) {
-      return narrate(state, [{ kind: 'narration', text: 'Nothing to confirm.' }])
+      return narrate(state, [{ kind: 'narration', text: message(world, 'nothing-to-confirm') }])
     }
     const cleared: GameState = { ...state, pendingConfirmation: null }
     if (!command.confirmed) {
-      return narrate(cleared, [{ kind: 'narration', text: 'Cancelled.' }])
+      return narrate(cleared, [{ kind: 'narration', text: message(world, 'cancelled') }])
     }
     return dispatch(cleared, pending.command, world, true)
   }
@@ -160,7 +222,7 @@ export function dispatch(state: GameState, command: ParsedCommand, world: World,
 
   // Once the game has ended, only restart/undo (handled by the UI) can clear state.
   if (state.endedWith) {
-    return narrate(state, [{ kind: 'narration', text: 'The story has ended. Type `restart` or `undo`.' }])
+    return narrate(state, [{ kind: 'narration', text: world.game?.endedText ?? 'The story has ended. Type `restart` or `undo`.' }])
   }
 
   if (!confirmed && isCriticalCommand(command)) {
@@ -173,7 +235,7 @@ export function dispatch(state: GameState, command: ParsedCommand, world: World,
   if (command.kind === 'disambiguation') {
     const pending = state.pendingDisambiguation
     if (!pending) {
-      return narrate(state, [{ kind: 'narration', text: 'Nothing to choose between.' }])
+      return narrate(state, [{ kind: 'narration', text: message(world, 'nothing-to-choose') }])
     }
     const cleared: GameState = { ...state, pendingDisambiguation: null }
     return dispatch(
@@ -186,9 +248,9 @@ export function dispatch(state: GameState, command: ParsedCommand, world: World,
 
   if (command.kind === 'unknown') {
     const text =
-      command.reason === 'unknown-verb' ? 'You consider the words, but they don\'t fit this place.'
-      : command.reason === 'unknown-noun' ? 'You don\'t see anything like that here.'
-      : 'You hesitate.'
+      command.reason === 'unknown-verb' ? message(world, 'unknown-verb')
+      : command.reason === 'unknown-noun' ? message(world, 'unknown-noun')
+      : message(world, 'malformed')
     return narrate(state, [{ kind: 'narration', text }])
   }
 
@@ -222,7 +284,7 @@ export function dispatch(state: GameState, command: ParsedCommand, world: World,
     if (command.verb === 'look') return withEndingCheck(handleLook(state, world), world)
     if (command.verb === 'inventory') return withEndingCheck(handleInventory(state, world), world)
     if (command.verb === 'wait') return withEndingCheck(handleWait(state, world), world)
-    if (command.verb === 'listen') return withEndingCheck(narrate(state, [{ kind: 'narration', text: 'You listen. The house listens back.' }]), world)
+    if (command.verb === 'listen') return withEndingCheck(narrate(state, [{ kind: 'narration', text: message(world, 'listen') }]), world)
   }
 
   if (command.kind === 'verb-target') {
@@ -242,9 +304,9 @@ export function dispatch(state: GameState, command: ParsedCommand, world: World,
     if (command.verb === 'use') {
       const target = world.items[command.target.canonical]
       if (target?.lighter && !target.lightable) {
-        return withEndingCheck(narrate(stateWithNoun, [{ kind: 'narration', text: 'Use match with what?' }]), world)
+        return withEndingCheck(narrate(stateWithNoun, [{ kind: 'narration', text: message(world, 'use-lighter-with-what') }]), world)
       }
-      return withEndingCheck(narrate(stateWithNoun, [{ kind: 'narration', text: "You can't think how to use that here." }]), world)
+      return withEndingCheck(narrate(stateWithNoun, [{ kind: 'narration', text: message(world, 'use-unknown') }]), world)
     }
     return withEndingCheck(narrate(stateWithNoun, [{ kind: 'narration', text: `You're not sure how to ${command.verb} that.` }]), world)
   }
@@ -260,16 +322,16 @@ export function dispatch(state: GameState, command: ParsedCommand, world: World,
       return withEndingCheck(handleLight(stateWithNoun, command.target.canonical, command.indirect.canonical, world), world)
     }
     if (command.verb === 'use') {
-      const burnResult = handleBurnLetter(stateWithNoun, command.target.canonical, command.indirect.canonical, world)
-      if (burnResult) return withEndingCheck(burnResult, world)
+      const actionResult = handleDeclarativeAction(stateWithNoun, command, world)
+      if (actionResult) return withEndingCheck(actionResult, world)
       const lightResult = handleUseAsLight(stateWithNoun, command.target.canonical, command.indirect.canonical, world)
       if (lightResult) return withEndingCheck(lightResult, world)
-      return withEndingCheck(narrate(stateWithNoun, [{ kind: 'narration', text: "You can't think how to use that here." }]), world)
+      return withEndingCheck(narrate(stateWithNoun, [{ kind: 'narration', text: message(world, 'use-unknown') }]), world)
     }
     return withEndingCheck(narrate(stateWithNoun, [{ kind: 'narration', text: `You're not sure how to ${command.verb} that.` }]), world)
   }
 
-  return narrate(state, [{ kind: 'narration', text: 'Nothing happens.' }])
+  return narrate(state, [{ kind: 'narration', text: message(world, 'nothing-happens') }])
 }
 
 function narrate(state: GameState, lines: TranscriptLine[]): DispatchResult {
@@ -291,11 +353,11 @@ function handleMeta(state: GameState, verb: 'restart' | 'undo' | 'hint' | 'save'
 
 function handleGo(state: GameState, direction: 'n' | 's' | 'e' | 'w' | 'u' | 'd', world: World): DispatchResult {
   const room = world.rooms[state.location]
-  if (!room) return narrate(state, [{ kind: 'narration', text: 'You are nowhere.' }])
+  if (!room) return narrate(state, [{ kind: 'narration', text: message(world, 'nowhere') }])
 
   const dest = room.exits[direction]
   if (!dest) {
-    return narrate(state, [{ kind: 'narration', text: 'You can\'t go that way.' }])
+    return narrate(state, [{ kind: 'narration', text: message(world, 'no-exit') }])
   }
 
   const lock = room.lockedExits?.[direction]
@@ -307,7 +369,7 @@ function handleGo(state: GameState, direction: 'n' | 's' | 'e' | 'w' | 'u' | 'd'
   }
 
   const destRoom = world.rooms[dest]
-  if (!destRoom) return narrate(state, [{ kind: 'narration', text: 'The way ahead is unfinished.' }])
+  if (!destRoom) return narrate(state, [{ kind: 'narration', text: message(world, 'unfinished-exit') }])
 
   const visited = !!state.roomState[dest]?.['visited']
   const description = visited ? destRoom.descriptions.revisit : destRoom.descriptions.firstVisit
@@ -316,12 +378,10 @@ function handleGo(state: GameState, direction: 'n' | 's' | 'e' | 'w' | 'u' | 'd'
   next = setRoomFlag(next, dest, 'visited', true)
 
   if (destRoom.safe) {
-    const ladder = ['steady', 'shaken', 'reeling', 'returning'] as const
-    const idx = ladder.indexOf(state.resolveLevel)
-    if (idx > 0) next = { ...next, resolveLevel: ladder[idx - 1]! }
+    next = { ...next, resolveLevel: recoverResolve(state.resolveLevel, world) }
   }
 
-  const lightTick = advanceLightState(next, 1, world)
+  const lightTick = advanceLightState(next, 'move', world)
   next = lightTick.state
 
   const arrivalLines: TranscriptLine[] = [
@@ -346,24 +406,33 @@ function handleGo(state: GameState, direction: 'n' | 's' | 'e' | 'w' | 'u' | 'd'
 }
 
 function handleDrink(state: GameState, itemId: string, world: World): DispatchResult {
-  if (itemId !== 'whiskey') {
-    return narrate(state, [{ kind: 'narration', text: "You can't drink that." }])
+  const action = drunkAction(world)
+  const targetItems = new Set([
+    ...(action.requires?.allHeld ?? []),
+    ...(action.requires?.allVisibleOrHeld ?? []),
+    ...(action.consumes?.inventory ?? []),
+  ])
+  if (!action.verbs.includes('drink') || !targetItems.has(itemId)) {
+    return narrate(state, [{ kind: 'narration', text: message(world, 'cannot-drink') }])
   }
-  const held = state.inventory.some((i) => i.id === 'whiskey')
+  const requiredHeld = action.requires?.allHeld ?? [...targetItems]
+  const held = requiredHeld.every((requiredId) => state.inventory.some((i) => i.id === requiredId))
   if (!held) {
-    return narrate(state, [{ kind: 'narration', text: "You'd have to be carrying it." }])
+    return narrate(state, [{ kind: 'narration', text: action.messages.missingRequired ?? message(world, 'need-carrying') }])
   }
-  const dest = world.rooms['drunk-hall']
+  const config = action.drunkTransition ?? DEFAULT_DRUNK_ACTION.drunkTransition!
+  const consumed = new Set(action.consumes?.inventory ?? [itemId])
+  const dest = world.rooms[config.destinationRoom]
   const next: GameState = {
     ...state,
-    location: 'drunk-hall',
-    inventory: state.inventory.filter((i) => i.id !== 'whiskey'),
+    location: config.destinationRoom,
+    inventory: state.inventory.filter((i) => !consumed.has(i.id)),
     flags: { ...state.flags, drunk: true, drunkMoves: 0, drunkSecretFound: false },
   }
-  const visited = !!next.roomState['drunk-hall']?.['visited']
-  const withVisit = setRoomFlag(next, 'drunk-hall', 'visited', true)
+  const visited = !!next.roomState[config.destinationRoom]?.['visited']
+  const withVisit = setRoomFlag(next, config.destinationRoom, 'visited', true)
   const lines: TranscriptLine[] = [
-    { kind: 'narration', text: 'You drink from the bottle. It tastes of smoke, sugar, and rainwater left too long in a pipe.' },
+    { kind: 'narration', text: action.messages.success },
   ]
   if (dest) {
     lines.push(
@@ -377,60 +446,74 @@ function handleDrink(state: GameState, itemId: string, world: World): DispatchRe
 function maybeResolveDrunkState(result: DispatchResult, world: World): DispatchResult {
   if (result.state.flags['drunk'] !== true) return result
   if (result.state.flags['drunkSecretFound'] === true) {
-    const passed = passOutFromDrunk(result.state, world, 'The faceless man steps backward into the dark. The floor rises under you, or you fall toward it.')
+    const action = drunkAction(world)
+    const passed = passOutFromDrunk(
+      result.state,
+      world,
+      action.messages.secretFoundPassOut ?? DEFAULT_DRUNK_ACTION.messages.secretFoundPassOut!,
+    )
     return { state: passed.state, appended: [...result.appended, ...passed.appended] }
   }
   return result
 }
 
 function advanceDrunkTurns(state: GameState, world: World): DispatchResult {
+  const action = drunkAction(world)
+  const config = action.drunkTransition ?? DEFAULT_DRUNK_ACTION.drunkTransition!
   const current = typeof state.flags['drunkMoves'] === 'number' ? state.flags['drunkMoves'] : 0
   const moves = current + 1
   const next = { ...state, flags: { ...state.flags, drunkMoves: moves } }
-  if (moves < DRUNK_TURNS_MAX) return { state: next, appended: [] }
-  return passOutFromDrunk(next, world, 'The rooms keep turning until they become one room. Then even that room is gone.')
+  if (moves < config.maxMoves) return { state: next, appended: [] }
+  return passOutFromDrunk(
+    next,
+    world,
+    action.messages.tooManyMovesPassOut ?? DEFAULT_DRUNK_ACTION.messages.tooManyMovesPassOut!,
+  )
 }
 
 function passOutFromDrunk(state: GameState, world: World, preface: string): DispatchResult {
-  const foyer = world.rooms['foyer']
-  const kitchenState = state.roomState['kitchen'] ?? {}
-  const kitchenTaken = ((kitchenState['takenItems'] ?? []) as string[]).filter((id) => id !== 'whiskey')
-  const kitchenDropped = ((kitchenState['droppedItems'] ?? []) as string[]).filter((id) => id !== 'whiskey')
+  const action = drunkAction(world)
+  const config = action.drunkTransition ?? DEFAULT_DRUNK_ACTION.drunkTransition!
+  const resetItem = action.consumes?.inventory?.[0] ?? 'whiskey'
+  const wakeRoom = world.rooms[config.wakeRoom]
+  const resetRoomState = state.roomState[config.resetRoom] ?? {}
+  const resetTaken = ((resetRoomState['takenItems'] ?? []) as string[]).filter((id) => id !== resetItem)
+  const resetDropped = ((resetRoomState['droppedItems'] ?? []) as string[]).filter((id) => id !== resetItem)
   const next: GameState = {
     ...state,
-    location: 'foyer',
-    inventory: state.inventory.filter((i) => i.id !== 'whiskey'),
+    location: config.wakeRoom,
+    inventory: state.inventory.filter((i) => i.id !== resetItem),
     flags: { ...state.flags, drunk: false, drunkMoves: 0, drunkSecretFound: false },
     roomState: {
       ...state.roomState,
-      kitchen: {
-        ...kitchenState,
-        takenItems: kitchenTaken,
-        droppedItems: kitchenDropped,
+      [config.resetRoom]: {
+        ...resetRoomState,
+        takenItems: resetTaken,
+        droppedItems: resetDropped,
       },
-      foyer: { ...(state.roomState['foyer'] ?? {}), visited: true },
+      [config.wakeRoom]: { ...(state.roomState[config.wakeRoom] ?? {}), visited: true },
     },
   }
   const lines: TranscriptLine[] = [
     { kind: 'narration', text: preface },
-    { kind: 'system', text: foyer?.title ?? '[ Foyer ]' },
-    { kind: 'narration', text: foyer?.descriptions.revisit ?? 'You wake in the foyer.' },
-    { kind: 'narration', text: 'The bottle is not with you. Somewhere in the kitchen, it is half full again.' },
+    { kind: 'system', text: wakeRoom?.title ?? `[ ${config.wakeRoom} ]` },
+    { kind: 'narration', text: wakeRoom?.descriptions.revisit ?? `You wake in ${config.wakeRoom}.` },
+    { kind: 'narration', text: action.messages.reset ?? DEFAULT_DRUNK_ACTION.messages.reset! },
   ]
   return narrate(next, lines)
 }
 
 function handleWait(state: GameState, world: World): DispatchResult {
-  const lightTick = advanceLightState(state, 1, world)
+  const lightTick = advanceLightState(state, 'wait', world)
   return narrate(lightTick.state, [
-    { kind: 'narration', text: 'Time passes.' },
+    { kind: 'narration', text: message(world, 'time-passes') },
     ...lightTick.lines,
   ])
 }
 
 function handleLook(state: GameState, world: World): DispatchResult {
   const room = world.rooms[state.location]
-  if (!room) return narrate(state, [{ kind: 'narration', text: 'You see nothing.' }])
+  if (!room) return narrate(state, [{ kind: 'narration', text: message(world, 'see-nothing') }])
   const items = getItemsInRoom(state, world, state.location)
   const itemNarration = describeRoomItems(items.map((id) => world.items[id]?.short ?? id))
   return narrate(state, [
@@ -459,30 +542,31 @@ function joinList(values: string[]): string {
 
 function handleInventory(state: GameState, world: World): DispatchResult {
   if (state.inventory.length === 0) {
-    return narrate(state, [{ kind: 'narration', text: 'You are empty-handed.' }])
+    return narrate(state, [{ kind: 'narration', text: message(world, 'inventory-empty') }])
   }
   const lines = state.inventory.map((inst) => {
     const item = world.items[inst.id]
-    const litSuffix = inst.state['lit'] === true ? ' (lit)' : ''
+    const mechanic = lightMechanic(world)
+    const litSuffix = mechanic?.enabled && inst.state[mechanic.stateKeys.lit] === true ? ' (lit)' : ''
     return `  ${item?.short ?? inst.id}${litSuffix}`
   })
   return narrate(state, [
-    { kind: 'narration', text: 'You are carrying:' },
+    { kind: 'narration', text: message(world, 'inventory-heading') },
     { kind: 'narration', text: lines.join('\n') },
   ])
 }
 
 function handleTake(state: GameState, itemId: string, world: World): DispatchResult {
   const item = world.items[itemId]
-  if (!item) return narrate(state, [{ kind: 'narration', text: 'You don\'t see that here.' }])
-  if (!item.takeable) return narrate(state, [{ kind: 'narration', text: 'You can\'t take that.' }])
+  if (!item) return narrate(state, [{ kind: 'narration', text: message(world, 'dont-see-here') }])
+  if (!item.takeable) return narrate(state, [{ kind: 'narration', text: message(world, 'cannot-take') }])
 
   const itemsHere = getItemsInRoom(state, world, state.location)
   if (!itemsHere.includes(itemId)) {
-    return narrate(state, [{ kind: 'narration', text: 'You don\'t see that here.' }])
+    return narrate(state, [{ kind: 'narration', text: message(world, 'dont-see-here') }])
   }
   if (state.inventory.find((i) => i.id === itemId)) {
-    return narrate(state, [{ kind: 'narration', text: 'You already have it.' }])
+    return narrate(state, [{ kind: 'narration', text: message(world, 'already-have') }])
   }
 
   const wasInRoomBase = (world.rooms[state.location]?.items ?? []).includes(itemId)
@@ -497,17 +581,18 @@ function handleTake(state: GameState, itemId: string, world: World): DispatchRes
     const dropped = (next.roomState[state.location]?.['droppedItems'] ?? []) as string[]
     next = setRoomFlag(next, state.location, 'droppedItems', dropped.filter((id) => id !== itemId))
   }
-  return narrate(next, [{ kind: 'narration', text: 'Taken.' }])
+  return narrate(next, [{ kind: 'narration', text: message(world, 'taken') }])
 }
 
-function handleDrop(state: GameState, itemId: string, _world: World): DispatchResult {
+function handleDrop(state: GameState, itemId: string, world: World): DispatchResult {
   if (!state.inventory.find((i) => i.id === itemId)) {
-    return narrate(state, [{ kind: 'narration', text: 'You don\'t have that.' }])
+    return narrate(state, [{ kind: 'narration', text: message(world, 'dont-have') }])
   }
-  const itemDef = _world.items[itemId]
+  const itemDef = world.items[itemId]
   const itemInst = state.inventory.find((i) => i.id === itemId) ?? null
-  if (itemDef?.lightable && itemInst?.state['lit'] === true) {
-    return narrate(state, [{ kind: 'narration', text: "Extinguish it first." }])
+  const mechanic = lightMechanic(world)
+  if (mechanic?.enabled && itemDef?.lightable && itemInst?.state[mechanic.stateKeys.lit] === true) {
+    return narrate(state, [{ kind: 'narration', text: lightMessage(world, 'dropLit', 'drop-lit') }])
   }
   let next: GameState = {
     ...state,
@@ -515,17 +600,17 @@ function handleDrop(state: GameState, itemId: string, _world: World): DispatchRe
   }
   const dropped = (next.roomState[state.location]?.['droppedItems'] ?? []) as string[]
   next = setRoomFlag(next, state.location, 'droppedItems', [...dropped, itemId])
-  return narrate(next, [{ kind: 'narration', text: 'Dropped.' }])
+  return narrate(next, [{ kind: 'narration', text: message(world, 'dropped') }])
 }
 
 function handleExamine(state: GameState, itemId: string, world: World): DispatchResult {
   const item = world.items[itemId]
-  if (!item) return narrate(state, [{ kind: 'narration', text: 'You don\'t see anything like that.' }])
+  if (!item) return narrate(state, [{ kind: 'narration', text: message(world, 'dont-see-anything') }])
   const inventoryInst = state.inventory.find((i) => i.id === itemId) ?? null
   const visible =
     inventoryInst ||
     getItemsInRoom(state, world, state.location).includes(itemId)
-  if (!visible) return narrate(state, [{ kind: 'narration', text: 'You don\'t see anything like that.' }])
+  if (!visible) return narrate(state, [{ kind: 'narration', text: message(world, 'dont-see-anything') }])
   return narrate(state, [{ kind: 'narration', text: describeItem(itemId, item.long, inventoryInst) }])
 }
 
@@ -544,46 +629,49 @@ function spellSmallCount(value: number): string {
 
 function handleRead(state: GameState, itemId: string, world: World): DispatchResult {
   const item = world.items[itemId]
-  if (!item) return narrate(state, [{ kind: 'narration', text: "You don't see anything like that." }])
+  if (!item) return narrate(state, [{ kind: 'narration', text: message(world, 'dont-see-anything') }])
   const visible =
     state.inventory.find((i) => i.id === itemId) ||
     getItemsInRoom(state, world, state.location).includes(itemId)
-  if (!visible) return narrate(state, [{ kind: 'narration', text: "You don't see anything like that." }])
+  if (!visible) return narrate(state, [{ kind: 'narration', text: message(world, 'dont-see-anything') }])
   if (!item.readable || !item.readableText) {
-    return narrate(state, [{ kind: 'narration', text: "There's nothing to read on it." }])
+    return narrate(state, [{ kind: 'narration', text: message(world, 'nothing-to-read') }])
   }
   return narrate(state, [{ kind: 'narration', text: item.readableText }])
 }
 
 function handleLight(state: GameState, targetId: string, instrumentId: string | null, world: World): DispatchResult {
+  const mechanic = lightMechanic(world)
+  if (!mechanic?.enabled) return narrate(state, [{ kind: 'narration', text: message(world, 'nothing-happens') }])
+
   const target = world.items[targetId]
-  if (!target) return narrate(state, [{ kind: 'narration', text: "You don't see anything like that." }])
-  if (target.lighter && !target.lightable) return narrate(state, [{ kind: 'narration', text: 'Use match with what?' }])
-  if (!target.lightable) return narrate(state, [{ kind: 'narration', text: "You can't light that." }])
+  if (!target) return narrate(state, [{ kind: 'narration', text: message(world, 'dont-see-anything') }])
+  if (target.lighter && !target.lightable) return narrate(state, [{ kind: 'narration', text: lightMessage(world, 'useLighterWithWhat', 'use-lighter-with-what') }])
+  if (!target.lightable) return narrate(state, [{ kind: 'narration', text: lightMessage(world, 'cannotLight', 'cannot-light') }])
   const targetInst = state.inventory.find((i) => i.id === targetId) ?? null
   const visibleInRoom = getItemsInRoom(state, world, state.location).includes(targetId)
   if (!targetInst && !visibleInRoom) {
-    return narrate(state, [{ kind: 'narration', text: "You don't see anything like that." }])
+    return narrate(state, [{ kind: 'narration', text: message(world, 'dont-see-anything') }])
   }
   // The 'lit' state lives on the inventory instance for inventory items, or
   // (eventually) on roomState for items left in a room. For now we only
   // support lighting items the player is carrying.
   if (!targetInst) {
-    return narrate(state, [{ kind: 'narration', text: "You'd have to be carrying it." }])
+    return narrate(state, [{ kind: 'narration', text: message(world, 'need-carrying') }])
   }
-  if (targetInst.state['lit'] === true) {
-    return narrate(state, [{ kind: 'narration', text: "It's already lit." }])
+  if (targetInst.state[mechanic.stateKeys.lit] === true) {
+    return narrate(state, [{ kind: 'narration', text: lightMessage(world, 'alreadyLit', 'already-lit') }])
   }
 
   // Pick an instrument. If explicit, validate it; if implicit, find any.
   let lighterInst = null as typeof state.inventory[number] | null
   if (instrumentId) {
     lighterInst = state.inventory.find((i) => i.id === instrumentId) ?? null
-    if (!lighterInst) return narrate(state, [{ kind: 'narration', text: "You don't have that." }])
+    if (!lighterInst) return narrate(state, [{ kind: 'narration', text: message(world, 'dont-have') }])
     const lighterDef = world.items[instrumentId]
-    if (!lighterDef?.lighter) return narrate(state, [{ kind: 'narration', text: "That isn't going to help." }])
+    if (!lighterDef?.lighter) return narrate(state, [{ kind: 'narration', text: lightMessage(world, 'notHelpful', 'not-helpful') }])
     if (typeof lighterInst.state['uses'] === 'number' && lighterInst.state['uses'] <= 0) {
-      return narrate(state, [{ kind: 'narration', text: "It is spent." }])
+      return narrate(state, [{ kind: 'narration', text: lightMessage(world, 'spent', 'spent') }])
     }
   } else {
     for (const inst of state.inventory) {
@@ -594,7 +682,7 @@ function handleLight(state: GameState, targetId: string, instrumentId: string | 
       break
     }
     if (!lighterInst) {
-      return narrate(state, [{ kind: 'narration', text: 'You have nothing to light it with.' }])
+      return narrate(state, [{ kind: 'narration', text: lightMessage(world, 'noLighter', 'no-lighter') }])
     }
   }
 
@@ -603,64 +691,105 @@ function handleLight(state: GameState, targetId: string, instrumentId: string | 
   const lighterUsesField = typeof lighterInst.state['uses'] === 'number' ? lighterInst.state['uses'] : null
   const newLighterUses = lighterUsesField === null ? null : lighterUsesField - 1
   const newInventory = state.inventory.map((i) => {
-    if (i.id === targetInst.id) return { ...i, state: { ...i.state, lit: true, burn: LIGHT_TURNS_MAX } }
+    if (i.id === targetInst.id) return { ...i, state: { ...i.state, [mechanic.stateKeys.lit]: true, [mechanic.stateKeys.burn]: mechanic.maxTurns } }
     if (i.id === lighterInst!.id && newLighterUses !== null) return { ...i, state: { ...i.state, uses: newLighterUses } }
     return i
   })
-  const lines: TranscriptLine[] = [{ kind: 'narration', text: target.litText ?? 'It catches.' }]
+  const lines: TranscriptLine[] = [{ kind: 'narration', text: target.litText ?? lightMessage(world, 'flameCatches', 'flame-catches') }]
   if (newLighterUses === 0) {
-    lines.push({ kind: 'narration', text: lighterDef.lighterEmptyText ?? 'It is spent.' })
+    lines.push({ kind: 'narration', text: lighterDef.lighterEmptyText ?? lightMessage(world, 'spent', 'spent') })
   }
   return narrate({ ...state, inventory: newInventory }, lines)
 }
 
-function handleBurnLetter(state: GameState, firstId: string, secondId: string, world: World): DispatchResult | null {
-  const ids = [firstId, secondId]
-  if (!ids.includes('letter') || !ids.includes('matches')) return null
+function handleDeclarativeAction(
+  state: GameState,
+  command: Extract<ParsedCommand, { kind: 'verb-target-prep' }>,
+  world: World,
+): DispatchResult | null {
+  const action = findDeclarativeAction(command, world)
+  if (!action) return null
 
-  const matches = state.inventory.find((i) => i.id === 'matches')
-  if (!matches) return narrate(state, [{ kind: 'narration', text: "You don't have a match." }])
-  if (typeof matches.state['uses'] === 'number' && matches.state['uses'] <= 0) {
-    return narrate(state, [{ kind: 'narration', text: 'The matchbook is empty.' }])
+  for (const itemId of action.requires?.allVisibleOrHeld ?? []) {
+    if (!isVisibleOrHeld(state, world, itemId)) {
+      return narrate(state, [{ kind: 'narration', text: action.messages.missingRequired ?? message(world, 'dont-see-anything') }])
+    }
+  }
+  for (const itemId of action.requires?.allHeld ?? []) {
+    if (!state.inventory.some((i) => i.id === itemId)) {
+      return narrate(state, [{ kind: 'narration', text: action.messages.missingRequired ?? message(world, 'dont-have') }])
+    }
   }
 
-  const letterHeld = state.inventory.some((i) => i.id === 'letter')
-  const letterInRoom = getItemsInRoom(state, world, state.location).includes('letter')
-  if (!letterHeld && !letterInRoom) {
-    return narrate(state, [{ kind: 'narration', text: "You don't see the letter here." }])
+  const decrement = action.decrements
+  const decremented = decrement ? state.inventory.find((i) => i.id === decrement.item) : null
+  if (decrement && !decremented) {
+    return narrate(state, [{ kind: 'narration', text: action.messages.missingRequired ?? message(world, 'dont-have') }])
+  }
+  const decrementStateValue = decrement ? decremented?.state[decrement.stateKey] : null
+  const decrementedValue: number | null = typeof decrementStateValue === 'number' ? decrementStateValue : null
+  if (decrementedValue !== null && decrementedValue <= 0) {
+    return narrate(state, [{ kind: 'narration', text: action.messages.spent ?? message(world, 'spent') }])
   }
 
-  const newMatchesUses = typeof matches.state['uses'] === 'number' ? matches.state['uses'] - 1 : null
+  const consumed = new Set(action.consumes?.inventory ?? [])
   let next: GameState = {
     ...state,
     inventory: state.inventory
-      .filter((i) => i.id !== 'letter')
-      .map((i) => i.id === 'matches' && newMatchesUses !== null ? { ...i, state: { ...i.state, uses: newMatchesUses } } : i),
-    flags: { ...state.flags, letterBurned: true },
+      .filter((i) => !consumed.has(i.id))
+      .map((i) =>
+        decrement && i.id === decrement.item && decrementedValue !== null
+          ? { ...i, state: { ...i.state, [decrement.stateKey]: decrementedValue - 1 } }
+          : i,
+      ),
+    flags: { ...state.flags, ...(action.setsFlags ?? {}) },
   }
 
-  if (letterInRoom) {
-    const baseItems = world.rooms[state.location]?.items ?? []
-    const dropped = (next.roomState[state.location]?.['droppedItems'] ?? []) as string[]
-    if (baseItems.includes('letter')) {
-      const taken = (next.roomState[state.location]?.['takenItems'] ?? []) as string[]
-      next = setRoomFlag(next, state.location, 'takenItems', [...new Set([...taken, 'letter'])])
-    }
-    if (dropped.includes('letter')) {
-      next = setRoomFlag(next, state.location, 'droppedItems', dropped.filter((id) => id !== 'letter'))
-    }
+  for (const itemId of consumed) {
+    next = removeVisibleRoomItem(next, world, itemId)
   }
 
-  const lines: TranscriptLine[] = [
-    { kind: 'narration', text: 'The letter catches at one corner. In a few breaths it is ash.' },
-  ]
-  if (newMatchesUses === 0) {
-    lines.push({ kind: 'narration', text: world.items['matches']?.lighterEmptyText ?? 'The matchbook is empty.' })
+  const lines: TranscriptLine[] = [{ kind: 'narration', text: action.messages.success }]
+  if (decrementedValue === 1 && action.messages.spent) {
+    lines.push({ kind: 'narration', text: action.messages.spent })
   }
   return narrate(next, lines)
 }
 
+function findDeclarativeAction(
+  command: Extract<ParsedCommand, { kind: 'verb-target-prep' }>,
+  world: World,
+): DeclarativeAction | null {
+  const commandItems = new Set([command.target.canonical, command.indirect.canonical])
+  for (const action of Object.values(world.actions ?? {})) {
+    if (!action.verbs.includes(command.verb)) continue
+    const required = [...(action.requires?.allVisibleOrHeld ?? []), ...(action.requires?.allHeld ?? [])]
+    if (required.length > 0 && required.every((itemId) => commandItems.has(itemId))) return action
+  }
+  return null
+}
+
+function isVisibleOrHeld(state: GameState, world: World, itemId: string): boolean {
+  return state.inventory.some((i) => i.id === itemId) || getItemsInRoom(state, world, state.location).includes(itemId)
+}
+
+function removeVisibleRoomItem(state: GameState, world: World, itemId: string): GameState {
+  if (!getItemsInRoom(state, world, state.location).includes(itemId)) return state
+  const baseItems = world.rooms[state.location]?.items ?? []
+  let next = state
+  if (baseItems.includes(itemId)) {
+    const taken = (next.roomState[state.location]?.['takenItems'] ?? []) as string[]
+    next = setRoomFlag(next, state.location, 'takenItems', [...new Set([...taken, itemId])])
+  }
+  const dropped = (next.roomState[state.location]?.['droppedItems'] ?? []) as string[]
+  if (dropped.includes(itemId)) {
+    next = setRoomFlag(next, state.location, 'droppedItems', dropped.filter((id) => id !== itemId))
+  }
+  return next
+}
+
 function handleUseAsLight(state: GameState, firstId: string, secondId: string, world: World): DispatchResult | null {
+  if (!lightMechanic(world)?.enabled) return null
   const first = world.items[firstId]
   const second = world.items[secondId]
   if (first?.lighter && second?.lightable) return handleLight(state, secondId, firstId, world)
@@ -669,45 +798,50 @@ function handleUseAsLight(state: GameState, firstId: string, secondId: string, w
 }
 
 function handleExtinguish(state: GameState, targetId: string, world: World): DispatchResult {
+  const mechanic = lightMechanic(world)
+  if (!mechanic?.enabled) return narrate(state, [{ kind: 'narration', text: message(world, 'nothing-happens') }])
+
   const target = world.items[targetId]
-  if (!target) return narrate(state, [{ kind: 'narration', text: "You don't see anything like that." }])
-  if (!target.lightable) return narrate(state, [{ kind: 'narration', text: "You can't extinguish that." }])
+  if (!target) return narrate(state, [{ kind: 'narration', text: message(world, 'dont-see-anything') }])
+  if (!target.lightable) return narrate(state, [{ kind: 'narration', text: lightMessage(world, 'cannotExtinguish', 'cannot-extinguish') }])
   const targetInst = state.inventory.find((i) => i.id === targetId)
-  if (!targetInst) return narrate(state, [{ kind: 'narration', text: "You'd have to be carrying it." }])
-  if (targetInst.state['lit'] !== true) {
-    return narrate(state, [{ kind: 'narration', text: "It isn't lit." }])
+  if (!targetInst) return narrate(state, [{ kind: 'narration', text: message(world, 'need-carrying') }])
+  if (targetInst.state[mechanic.stateKeys.lit] !== true) {
+    return narrate(state, [{ kind: 'narration', text: lightMessage(world, 'notLit', 'not-lit') }])
   }
   const newInventory = state.inventory.map((i) =>
-    i.id === targetId ? { ...i, state: { ...i.state, lit: false, burn: 0 } } : i,
+    i.id === targetId ? { ...i, state: { ...i.state, [mechanic.stateKeys.lit]: false, [mechanic.stateKeys.burn]: 0 } } : i,
   )
-  return narrate({ ...state, inventory: newInventory }, [{ kind: 'narration', text: target.extinguishedText ?? 'The flame dies.' }])
+  return narrate({ ...state, inventory: newInventory }, [{ kind: 'narration', text: target.extinguishedText ?? lightMessage(world, 'flameDies', 'flame-dies') }])
 }
 
-function advanceLightState(state: GameState, cost: number, world: World): { state: GameState; lines: TranscriptLine[] } {
-  if (cost <= 0) return { state, lines: [] }
+function advanceLightState(state: GameState, trigger: 'move' | 'wait', world: World): { state: GameState; lines: TranscriptLine[] } {
+  const mechanic = lightMechanic(world)
+  if (!mechanic?.enabled || !mechanic.burnOn.includes(trigger)) return { state, lines: [] }
 
   let changed = false
   const lines: TranscriptLine[] = []
   const inventory = state.inventory.map((inst) => {
     const def = world.items[inst.id]
-    if (!def?.lightable || inst.state['lit'] !== true) return inst
+    if (!def?.lightable || inst.state[mechanic.stateKeys.lit] !== true) return inst
 
-    const turnsLeft = getLightTurnsLeft(inst)
-    const nextTurns = Math.max(0, turnsLeft - cost)
+    const turnsLeft = getLightTurnsLeft(inst, world)
+    const nextTurns = Math.max(0, turnsLeft - 1)
     changed = true
 
     if (nextTurns === 0) {
-      lines.push({ kind: 'narration', text: def.extinguishedText ?? 'The flame dies.' })
-      return { ...inst, state: { ...inst.state, lit: false, burn: 0 } }
+      lines.push({ kind: 'narration', text: def.extinguishedText ?? lightMessage(world, 'flameDies', 'flame-dies') })
+      return { ...inst, state: { ...inst.state, [mechanic.stateKeys.lit]: false, [mechanic.stateKeys.burn]: 0 } }
     }
-    return { ...inst, state: { ...inst.state, burn: nextTurns } }
+    return { ...inst, state: { ...inst.state, [mechanic.stateKeys.burn]: nextTurns } }
   })
 
   return changed ? { state: { ...state, inventory }, lines } : { state, lines }
 }
 
-function getLightTurnsLeft(inst: ItemInstance): number {
-  const turns = inst.state['burn']
+function getLightTurnsLeft(inst: ItemInstance, world: World): number {
+  const mechanic = lightMechanic(world)
+  const turns = inst.state[mechanic.stateKeys.burn]
   if (typeof turns === 'number') return Math.max(0, turns)
-  return inst.state['lit'] === true ? LIGHT_TURNS_MAX : 0
+  return inst.state[mechanic.stateKeys.lit] === true ? mechanic.maxTurns : 0
 }

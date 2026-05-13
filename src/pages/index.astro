@@ -1,22 +1,27 @@
 ---
 import '../ui/crt.css'
+import { world } from '../world'
 
 const buildNumber = process.env.CI_PIPELINE_NUMBER ?? 'local'
+const ui = world.ui
+const footerLinks = ui?.footer.links ?? []
+const firstFooterLink = footerLinks[0]
+const remainingFooterLinks = footerLinks.slice(1)
 ---
 
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>Halfstreet — Ethan J Lewis</title>
-    <meta name="description" content="A gothic mystery." />
-    <meta name="robots" content="noindex" />
+    <title>{ui?.pageTitle ?? `${world.game?.title ?? 'Halfstreet'} - Ethan J Lewis`}</title>
+    <meta name="description" content={ui?.description ?? world.game?.description ?? 'A gothic mystery.'} />
+    <meta name="robots" content={ui?.robots ?? 'noindex'} />
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="icon" href="/favicon-96x96.png" type="image/png" sizes="96x96" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
-    <meta name="theme-color" content="#1a0d00" />
+    <meta name="theme-color" content={ui?.themeColor ?? '#1a0d00'} />
   </head>
   <body>
     <div class="mystery-root" data-mystery-root>
@@ -52,16 +57,20 @@ const buildNumber = process.env.CI_PIPELINE_NUMBER ?? 'local'
             </div>
             <div class="mystery-options-group" aria-label="Game">
               <div class="mystery-options-label">Game</div>
-              <button type="button" data-chips-choice="on" aria-pressed="true">Chips On</button>
-              <button type="button" data-chips-choice="off" aria-pressed="false">Chips Off</button>
+              {ui?.features.chips !== false && (
+                <>
+                  <button type="button" data-chips-choice="on" aria-pressed="true">Chips On</button>
+                  <button type="button" data-chips-choice="off" aria-pressed="false">Chips Off</button>
+                </>
+              )}
               <button type="button" data-restart-choice>Restart</button>
             </div>
           </div>
         </div>
         <div class="mystery-transcript" data-mystery-transcript aria-live="polite" aria-atomic="false"></div>
         <div class="mystery-controls">
-          <div class="mystery-chips" data-mystery-chips></div>
-          <div class="mystery-light-meter" data-mystery-light-meter aria-hidden="true"></div>
+          {ui?.features.chips !== false && <div class="mystery-chips" data-mystery-chips></div>}
+          {ui?.features.lightMeter !== false && <div class="mystery-light-meter" data-mystery-light-meter aria-hidden="true"></div>}
         </div>
         <div class="mystery-input-row">
           <input
@@ -78,13 +87,25 @@ const buildNumber = process.env.CI_PIPELINE_NUMBER ?? 'local'
         </div>
       </div>
       <footer class="mystery-footer">
-        © 2026 <a href="https://ethanjlewis.com">Ethan J Lewis</a>
-        <span aria-hidden="true">|</span>
-        <a href="https://half.st/ejlewis/halfstreet/src/branch/main/LICENSE">GNU 3.0</a>
-        <span aria-hidden="true">|</span>
-        <span>Build #{buildNumber}</span>
-        <span aria-hidden="true">|</span>
-        <a href="https://half.st/ejlewis/halfstreet">Source Code</a>
+        {ui?.footer.copyrightHref ? <a href={ui.footer.copyrightHref}>{ui.footer.copyright}</a> : <span>{ui?.footer.copyright ?? '© 2026 Ethan J Lewis'}</span>}
+        {firstFooterLink && (
+          <>
+            <span aria-hidden="true">|</span>
+            <a href={firstFooterLink.href}>{firstFooterLink.label}</a>
+          </>
+        )}
+        {ui?.footer.showBuild !== false && (
+          <>
+            <span aria-hidden="true">|</span>
+            <span>{ui?.footer.buildLabel ?? 'Build #'}{buildNumber}</span>
+          </>
+        )}
+        {remainingFooterLinks.map((link) => (
+          <>
+            <span aria-hidden="true">|</span>
+            <a href={link.href}>{link.label}</a>
+          </>
+        ))}
       </footer>
     </div>
     <script>

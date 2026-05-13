@@ -326,6 +326,79 @@ describe('light status', () => {
       maxTurns: 6,
     })
   })
+
+  it('uses the configured light meter length and state keys', () => {
+    const lightWorld: World = {
+      ...world,
+      mechanics: {
+        light: {
+          enabled: true,
+          handler: 'light',
+          maxTurns: 3,
+          burnOn: ['wait'],
+          stateKeys: { lit: 'isLit', burn: 'fuel' },
+          ui: { meter: true, icon: 'candle' },
+        },
+      },
+      items: {
+        ...world.items,
+        torch: {
+          id: 'torch',
+          names: ['torch', 'lamp'],
+          short: 'an oil lamp',
+          long: 'An iron oil lamp, unlit.',
+          initialState: { isLit: false },
+          takeable: true,
+          lightable: true,
+        },
+      },
+    }
+    const state: GameState = {
+      ...initialStateFor(lightWorld),
+      inventory: [{ id: 'torch', state: { isLit: true, fuel: 2 } }],
+    }
+
+    expect(getLightStatus(state, lightWorld)).toEqual({
+      itemId: 'torch',
+      lit: true,
+      turnsLeft: 2,
+      maxTurns: 3,
+    })
+  })
+
+  it('hides the meter when the light mechanic is disabled', () => {
+    const lightWorld: World = {
+      ...world,
+      mechanics: {
+        light: {
+          enabled: false,
+          handler: 'light',
+          maxTurns: 6,
+          burnOn: ['move', 'wait'],
+          stateKeys: { lit: 'lit', burn: 'burn' },
+          ui: { meter: true, icon: 'candle' },
+        },
+      },
+      items: {
+        ...world.items,
+        torch: {
+          id: 'torch',
+          names: ['torch', 'lamp'],
+          short: 'an oil lamp',
+          long: 'An iron oil lamp, unlit.',
+          initialState: { lit: false },
+          takeable: true,
+          lightable: true,
+        },
+      },
+    }
+    const state: GameState = {
+      ...initialStateFor(lightWorld),
+      inventory: [{ id: 'torch', state: { lit: true, burn: 6 } }],
+    }
+
+    expect(getLightStatus(state, lightWorld)).toBeNull()
+  })
 })
 
 describe('ambiguous → disambiguation flow', () => {
@@ -553,6 +626,100 @@ describe('light/extinguish verbs (implicit lighter)', () => {
     expect(result.state.location).toBe('r2')
   })
 
+  it('uses configured maxTurns when lighting and burning down', () => {
+    const baseWorld = w()
+    const world: World = {
+      ...baseWorld,
+      mechanics: {
+        light: {
+          enabled: true,
+          handler: 'light',
+          maxTurns: 3,
+          burnOn: ['wait'],
+          stateKeys: { lit: 'lit', burn: 'burn' },
+          ui: { meter: true, icon: 'candle' },
+          messages: { flameDies: 'The configured light dies.' },
+        },
+      },
+      items: {
+        ...baseWorld.items,
+        lamp: {
+          id: 'lamp',
+          names: ['lamp'],
+          short: 'an oil lamp',
+          long: '.',
+          initialState: { lit: false },
+          takeable: true,
+          lightable: true,
+          litText: 'The wick catches.',
+        },
+      },
+    }
+    let state = initialStateFor(world)
+    state = { ...state, inventory: [
+      { id: 'lamp', state: { lit: false } },
+      { id: 'matches', state: { uses: 2 } },
+    ] }
+
+    const lit = dispatch(state, { kind: 'verb-target', verb: 'light', target: { canonical: 'lamp', raw: 'lamp' } }, world)
+    expect(lit.state.inventory.find((i) => i.id === 'lamp')?.state['burn']).toBe(3)
+
+    const first = dispatch(lit.state, { kind: 'verb-only', verb: 'wait' }, world)
+    expect(first.state.inventory.find((i) => i.id === 'lamp')?.state['burn']).toBe(2)
+    const second = dispatch(first.state, { kind: 'verb-only', verb: 'wait' }, world)
+    expect(second.state.inventory.find((i) => i.id === 'lamp')?.state['burn']).toBe(1)
+    const third = dispatch(second.state, { kind: 'verb-only', verb: 'wait' }, world)
+    expect(third.state.inventory.find((i) => i.id === 'lamp')?.state['lit']).toBe(false)
+    expect(third.appended.map((l) => l.text)).toContain('The configured light dies.')
+  })
+
+  it('does not burn down on movement when move is not configured', () => {
+    const world: World = {
+      ...w(),
+      mechanics: {
+        light: {
+          enabled: true,
+          handler: 'light',
+          maxTurns: 3,
+          burnOn: ['wait'],
+          stateKeys: { lit: 'lit', burn: 'burn' },
+          ui: { meter: true, icon: 'candle' },
+        },
+      },
+      rooms: {
+        r: { id: 'r', title: '[ R ]', descriptions: { firstVisit: '.', revisit: '.', examined: '.' }, exits: { n: 'r2' }, items: [] },
+        r2: { id: 'r2', title: '[ R2 ]', descriptions: { firstVisit: '.', revisit: '.', examined: '.' }, exits: {}, items: [] },
+      },
+    }
+    let state = initialStateFor(world)
+    state = { ...state, inventory: [{ id: 'lamp', state: { lit: true, burn: 3 } }] }
+
+    const result = dispatch(state, { kind: 'go', direction: 'n' }, world)
+    expect(result.state.inventory.find((i) => i.id === 'lamp')?.state['burn']).toBe(3)
+  })
+
+  it('disabling the light mechanic removes burn-down behavior', () => {
+    const world: World = {
+      ...w(),
+      mechanics: {
+        light: {
+          enabled: false,
+          handler: 'light',
+          maxTurns: 6,
+          burnOn: ['move', 'wait'],
+          stateKeys: { lit: 'lit', burn: 'burn' },
+          ui: { meter: true, icon: 'candle' },
+        },
+      },
+    }
+    let state = initialStateFor(world)
+    state = { ...state, inventory: [{ id: 'lamp', state: { lit: true, burn: 1 } }] }
+
+    const result = dispatch(state, { kind: 'verb-only', verb: 'wait' }, world)
+    expect(result.state.inventory.find((i) => i.id === 'lamp')?.state).toEqual({ lit: true, burn: 1 })
+    expect(result.appended.map((l) => l.text)).not.toContain('The flame dies.')
+  })
+
   it('extinguishes a lit lamp', () => {
     const world = w()
     let state = initialStateFor(world)
@@ -633,6 +800,21 @@ describe('use verb routing', () => {
         letter: { id: 'letter', names: ['letter'], short: 'a letter', long: '.', initialState: {}, takeable: true, readable: true, readableText: 'Read me.' },
         'broken-cigarette': { id: 'broken-cigarette', names: ['cigarette', 'broken cigarette'], short: 'a broken cigarette', long: '.', initialState: { lit: false }, takeable: true, lightable: true, litText: 'The end glows once, then steadies. The smoke is bitter.' },
       },
+      actions: {
+        'burn-letter': {
+          id: 'burn-letter',
+          verbs: ['use'],
+          requires: { allVisibleOrHeld: ['letter', 'matches'] },
+          consumes: { inventory: ['letter'] },
+          decrements: { item: 'matches', stateKey: 'uses' },
+          setsFlags: { letterBurned: true },
+          messages: {
+            success: 'The letter catches at one corner. In a few breaths it is ash.',
+            spent: 'The matchbook is empty.',
+            missingRequired: "You don't see the letter here.",
+          },
+        },
+      },
       encounters: {},
       endings: { true: { whenFlags: { _never: true }, narration: '' }, wrong: { whenFlags: { _never: true }, narration: '' }, bad: { whenFlags: { _never: true }, narration: '' } },
     }
@@ -692,6 +874,77 @@ describe('use verb routing', () => {
     expect(result.state.inventory.find((i) => i.id === 'broken-cigarette')?.state['lit']).toBe(true)
     expect(result.state.inventory.find((i) => i.id === 'matches')?.state['uses']).toBe(1)
     expect(result.appended.at(-1)?.text).toBe('The end glows once, then steadies. The smoke is bitter.')
+  })
+})
+
+describe('handler-backed drink action', () => {
+  function w(): World {
+    return {
+      startingRoom: 'r',
+      startingInventory: ['whiskey'],
+      rooms: {
+        r: { id: 'r', title: '[ R ]', descriptions: { firstVisit: '.', revisit: '.', examined: '.' }, exits: {}, items: [] },
+        'drunk-start': { id: 'drunk-start', title: '[ Drunk Start ]', descriptions: { firstVisit: 'The hall tips.', revisit: 'The hall tips again.', examined: '.' }, exits: { n: 'drunk-next' }, items: [] },
+        'drunk-next': { id: 'drunk-next', title: '[ Drunk Next ]', descriptions: { firstVisit: 'The room doubles.', revisit: 'The room doubles again.', examined: '.' }, exits: { s: 'drunk-start' }, items: [] },
+        vestibule: { id: 'vestibule', title: '[ Vestibule ]', descriptions: { firstVisit: '.', revisit: 'You wake somewhere else.', examined: '.' }, exits: {}, items: [] },
+        pantry: { id: 'pantry', title: '[ Pantry ]', descriptions: { firstVisit: '.', revisit: '.', examined: '.' }, exits: {}, items: ['whiskey'] },
+      },
+      items: {
+        whiskey: { id: 'whiskey', names: ['whiskey'], short: 'a bottle of whiskey', long: '.', initialState: {}, takeable: true },
+      },
+      actions: {
+        'drink-whiskey': {
+          id: 'drink-whiskey',
+          verbs: ['drink'],
+          handler: 'drunk-transition',
+          requires: { allHeld: ['whiskey'] },
+          consumes: { inventory: ['whiskey'] },
+          drunkTransition: {
+            destinationRoom: 'drunk-start',
+            maxMoves: 2,
+            wakeRoom: 'vestibule',
+            resetRoom: 'pantry',
+          },
+          messages: {
+            success: 'Custom drink text.',
+            missingRequired: 'Hold it first.',
+            tooManyMovesPassOut: 'Custom pass out.',
+            reset: 'Custom reset.',
+          },
+        },
+      },
+      encounters: {},
+      endings: { true: { whenFlags: { _never: true }, narration: '' }, wrong: { whenFlags: { _never: true }, narration: '' }, bad: { whenFlags: { _never: true }, narration: '' } },
+    }
+  }
+
+  it('uses markdown action config for destination, move cap, wake room, and reset room', () => {
+    const world = w()
+    let state = initialStateFor(world)
+    let result = dispatch(state, { kind: 'verb-target', verb: 'drink', target: { canonical: 'whiskey', raw: 'whiskey' } }, world)
+
+    expect(result.state.location).toBe('drunk-start')
+    expect(result.state.inventory.find((i) => i.id === 'whiskey')).toBeUndefined()
+    expect(result.appended.map((l) => l.text)).toContain('Custom drink text.')
+
+    state = {
+      ...result.state,
+      roomState: {
+        ...result.state.roomState,
+        pantry: { takenItems: ['whiskey'], droppedItems: ['whiskey'] },
+      },
+    }
+    result = dispatch(state, { kind: 'go', direction: 'n' }, world)
+    expect(result.state.location).toBe('drunk-next')
+    expect(result.state.flags['drunkMoves']).toBe(1)
+
+    result = dispatch(result.state, { kind: 'go', direction: 's' }, world)
+    expect(result.state.location).toBe('vestibule')
+    expect(result.state.flags['drunk']).toBe(false)
+    expect(result.state.roomState['pantry']?.['takenItems']).toEqual([])
+    expect(result.state.roomState['pantry']?.['droppedItems']).toEqual([])
+    expect(result.appended.map((l) => l.text)).toContain('Custom pass out.')
+    expect(result.appended.map((l) => l.text)).toContain('Custom reset.')
   })
 })
 

@@ -2,6 +2,38 @@
 id: vault-memory
 startsIn: "[[vault]]"
 initialPhase: buried
+aliases: [vault memory, memory, bed, photograph, photo, thing, buried thing]
+defaultWrongVerbNarration: wrong-verb
+phases:
+  buried:
+    description: buried
+    transitions:
+      - verb: read
+        target: family-register
+        chipLabel: READ REGISTER
+        chipCommand: read register
+        requires:
+          item: "[[family-register]]"
+        narration: read-register-resolved
+        setFlags:
+          nameSpoken: true
+        to: resolved
+      - verb: take
+        target: vault-memory
+        chipLabel: TAKE PHOTO
+        chipCommand: take photograph
+        narration: take-photograph-resolved
+        setFlags:
+          tookPhotograph: true
+        to: resolved
+      - verb: attack
+        target: vault-memory
+        chipLabel: ATTACK BED
+        chipCommand: attack bed
+        narration: attack-bed-resolved
+        setFlags:
+          disturbedVault: true
+        to: resolved
 ---
 
 ## buried

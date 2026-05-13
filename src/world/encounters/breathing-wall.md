@@ -2,6 +2,22 @@
 id: breathing-wall
 startsIn: "[[servants-passage]]"
 initialPhase: audible
+aliases: [breathing wall, wall, walls, breathing]
+onResolved:
+  setFlags:
+    breathingWallPassed: true
+onFailed:
+  narration: failed
+  retreatTo: "[[music-room]]"
+defaultWrongVerbNarration: wrong-verb
+phases:
+  audible:
+    description: audible
+    transitions:
+      - verb: wait
+        chipLabel: WAIT
+        narration: wait-resolved
+        to: resolved
 ---
 
 ## audible

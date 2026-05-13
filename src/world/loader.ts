@@ -18,9 +18,20 @@ function matter(raw: string): ParsedFile {
   const data = (parsed && typeof parsed === 'object' ? parsed : {}) as Record<string, unknown>
   return { data, content }
 }
-import type { Room, RoomDescriptions, Item } from './types'
+import { DEFAULT_WORLD_MESSAGES, type DeclarativeAction, type EncounterDef, type Room, type RoomDescriptions, type Item, type WorldMessages } from './types'
 import type { Direction } from '../engine/types'
-import { roomFrontmatterSchema, itemFrontmatterSchema, endingFrontmatterSchema, encounterFrontmatterSchema } from './schema'
+import {
+  gameFrontmatterSchema,
+  actionFrontmatterSchema,
+  lightMechanicFrontmatterSchema,
+  parserFrontmatterSchema,
+  resolveMechanicFrontmatterSchema,
+  roomFrontmatterSchema,
+  itemFrontmatterSchema,
+  endingFrontmatterSchema,
+  encounterFrontmatterSchema,
+  uiFrontmatterSchema,
+} from './schema'
 
 const WIKILINK = /^\[\[([^\]|]+)(?:\|[^\]]*)?\]\]$/
 
@@ -77,6 +88,139 @@ const DIR_KEYS: Record<Direction, { exit: string; requires: string; locked: stri
 }
 
 const REQUIRED_ROOM_SECTIONS = ['first-visit', 'revisit', 'examined'] as const
+
+const REQUIRED_GAME_SECTIONS = ['opening-art', 'help', 'ended'] as const
+
+export function parseGame(raw: string, sourcePath: string) {
+  const parsed = matter(raw)
+  const frontmatter = stripWikilink(parsed.data) as Record<string, unknown>
+  const fm = gameFrontmatterSchema.parse(frontmatter)
+  const sections = splitSections(parsed.content)
+  for (const key of REQUIRED_GAME_SECTIONS) {
+    if (!(key in sections)) {
+      throw new Error(`${sourcePath}: missing required section "## ${key}"`)
+    }
+  }
+
+  return {
+    id: fm.id,
+    title: fm.title,
+    description: fm.description,
+    startingRoom: fm.startingRoom,
+    startingInventory: fm.startingInventory,
+    endingPriority: fm.endingPriority,
+    transcriptCap: fm.transcriptCap,
+    openingArt: sections['opening-art']!,
+    helpText: sections['help']!,
+    endedText: sections['ended']!,
+  }
+}
+
+export function parseParser(raw: string, _sourcePath: string) {
+  const parsed = matter(raw)
+  const frontmatter = stripWikilink(parsed.data) as Record<string, unknown>
+  return parserFrontmatterSchema.parse(frontmatter)
+}
+
+export function parseUi(raw: string, _sourcePath: string) {
+  const parsed = matter(raw)
+  const frontmatter = stripWikilink(parsed.data) as Record<string, unknown>
+  return uiFrontmatterSchema.parse(frontmatter)
+}
+
+export function parseMessages(raw: string, sourcePath: string): WorldMessages {
+  const parsed = matter(raw)
+  const sections = splitSections(parsed.content)
+  const allowed = Object.keys(DEFAULT_WORLD_MESSAGES)
+  for (const key of Object.keys(sections)) {
+    if (!allowed.includes(key)) {
+      throw new Error(`${sourcePath}: unknown message section "## ${key}". Allowed: ${allowed.join(', ')}`)
+    }
+  }
+  return sections as WorldMessages
+}
+
+const LIGHT_MESSAGE_KEYS = [
+  'useLighterWithWhat',
+  'cannotLight',
+  'alreadyLit',
+  'notHelpful',
+  'spent',
+  'noLighter',
+  'cannotExtinguish',
+  'notLit',
+  'dropLit',
+  'flameCatches',
+  'flameDies',
+] as const
+
+export function parseLightMechanic(raw: string, sourcePath: string) {
+  const parsed = matter(raw)
+  const frontmatter = stripWikilink(parsed.data) as Record<string, unknown>
+  const fm = lightMechanicFrontmatterSchema.parse(frontmatter)
+  const sections = splitSections(parsed.content)
+  for (const key of Object.keys(sections)) {
+    if (!LIGHT_MESSAGE_KEYS.includes(key as typeof LIGHT_MESSAGE_KEYS[number])) {
+      throw new Error(`${sourcePath}: unknown light mechanic section "## ${key}". Allowed: ${LIGHT_MESSAGE_KEYS.join(', ')}`)
+    }
+  }
+
+  return {
+    ...fm,
+    messages: sections,
+  }
+}
+
+export function parseResolveMechanic(raw: string, _sourcePath: string) {
+  const parsed = matter(raw)
+  const frontmatter = stripWikilink(parsed.data) as Record<string, unknown>
+  return resolveMechanicFrontmatterSchema.parse(frontmatter)
+}
+
+const ACTION_SECTION_KEYS = ['success', 'spent', 'missingRequired', 'secretFoundPassOut', 'tooManyMovesPassOut', 'reset'] as const
+type ActionSectionKey = typeof ACTION_SECTION_KEYS[number]
+const ACTION_REQUIRED_SECTIONS: Record<NonNullable<DeclarativeAction['handler']> | 'default', ActionSectionKey[]> = {
+  default: ['success'],
+  'drunk-transition': ['success', 'secretFoundPassOut', 'tooManyMovesPassOut', 'reset'],
+}
+
+export function parseAction(raw: string, sourcePath: string): DeclarativeAction {
+  const parsed = matter(raw)
+  const frontmatter = stripWikilink(parsed.data) as Record<string, unknown>
+  const fm = actionFrontmatterSchema.parse(frontmatter)
+  const sections = splitSections(parsed.content)
+  for (const key of Object.keys(sections)) {
+    if (!ACTION_SECTION_KEYS.includes(key as ActionSectionKey)) {
+      throw new Error(`${sourcePath}: unknown action section "## ${key}". Allowed: ${ACTION_SECTION_KEYS.join(', ')}`)
+    }
+  }
+  const requiredSections = ACTION_REQUIRED_SECTIONS[fm.handler ?? 'default']
+  for (const key of requiredSections) {
+    if (!sections[key]) {
+      const scope = fm.handler ? ` for handler "${fm.handler}"` : ''
+      throw new Error(`${sourcePath}: missing required section "## ${key}"${scope}`)
+    }
+  }
+
+  return {
+    id: fm.id,
+    verbs: fm.verbs,
+    handler: fm.handler,
+    requires: fm.requires,
+    consumes: fm.consumes,
+    decrements: fm.decrements,
+    setsFlags: fm.setsFlags,
+    drunkTransition: fm.drunkTransition,
+    messages: {
+      success: sections.success!,
+      spent: sections.spent,
+      missingRequired: sections.missingRequired,
+      secretFoundPassOut: sections.secretFoundPassOut,
+      tooManyMovesPassOut: sections.tooManyMovesPassOut,
+      reset: sections.reset,
+    },
+  }
+}
 
 export function parseRoom(raw: string, sourcePath: string): Room {
   const parsed = matter(raw)
@@ -179,7 +323,7 @@ export function parseItem(raw: string, sourcePath: string): Item {
 }
 
 export interface ParsedEnding {
-  id: 'true' | 'wrong' | 'bad' | 'replacement' | 'mercy'
+  id: string
   ending: { whenFlags: Record<string, string | boolean | number | string[]>; narration: string }
 }
 
@@ -199,6 +343,7 @@ export interface ParsedEncounterNarration {
   startsIn: string
   initialPhase: string
   narrations: Record<string, string>
+  encounter?: EncounterDef
 }
 
 export function parseEncounterNarration(raw: string, sourcePath: string): ParsedEncounterNarration {
@@ -209,12 +354,65 @@ export function parseEncounterNarration(raw: string, sourcePath: string): Parsed
   if (Object.keys(narrations).length === 0) {
     throw new Error(`${sourcePath}: no narration sections found`)
   }
+  const encounter = fm.phases
+    ? buildEncounterFromMarkdown(fm, narrations, sourcePath)
+    : undefined
+
   return {
     id: fm.id,
     startsIn: fm.startsIn,
     initialPhase: fm.initialPhase,
     narrations,
+    encounter,
   }
+}
+
+function proseSection(sections: Record<string, string>, key: string, sourcePath: string): string {
+  const text = sections[key]
+  if (text === undefined) {
+    const available = Object.keys(sections).join(', ') || '(none)'
+    throw new Error(`${sourcePath}: frontmatter references missing section "## ${key}". Available: ${available}`)
+  }
+  return text
+}
+
+function buildEncounterFromMarkdown(
+  fm: ReturnType<typeof encounterFrontmatterSchema.parse>,
+  sections: Record<string, string>,
+  sourcePath: string,
+): EncounterDef {
+  const phases: EncounterDef['phases'] = {}
+  for (const [phaseId, phase] of Object.entries(fm.phases ?? {})) {
+    phases[phaseId] = {
+      description: proseSection(sections, phase.description, sourcePath),
+      transitions: phase.transitions.map((transition) => ({
+        ...transition,
+        narration: proseSection(sections, transition.narration, sourcePath),
+      })),
+    }
+  }
+  if (!phases[fm.initialPhase]) {
+    throw new Error(`${sourcePath}: initialPhase "${fm.initialPhase}" is not defined in phases`)
+  }
+
+  const encounter: EncounterDef = {
+    id: fm.id,
+    startsIn: fm.startsIn,
+    initialPhase: fm.initialPhase,
+    phases,
+  }
+  if (fm.aliases) encounter.aliases = fm.aliases
+  if (fm.onResolved) encounter.onResolved = fm.onResolved
+  if (fm.onFailed) {
+    encounter.onFailed = {
+      narration: proseSection(sections, fm.onFailed.narration, sourcePath),
+      retreatTo: fm.onFailed.retreatTo,
+    }
+  }
+  if (fm.defaultWrongVerbNarration) {
+    encounter.defaultWrongVerbNarration = proseSection(sections, fm.defaultWrongVerbNarration, sourcePath)
+  }
+  return encounter
 }
 
 const encounterNarrationRegistry = new Map<string, Map<string, string>>()
@@ -246,9 +444,8 @@ export function narration(encounterId: string, key: string): string {
 }
 
 // Auto-register encounter narrations from co-located markdown files at module init.
-// This populates the registry BEFORE encounters.ts is evaluated (ESM evaluates dependencies first),
-// so encounters.ts can call narration() at top level without explicit ordering.
-// While src/mystery/world/encounters/ does not yet exist (Task 8 creates it), this is a no-op.
+// This keeps the narration() helper available for tests and any remaining
+// TypeScript escape hatches that need to reference encounter prose by key.
 const _encounterFiles = import.meta.glob<string>('./encounters/*.md', {
   eager: true, query: '?raw', import: 'default',
 })

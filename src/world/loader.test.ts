@@ -1,5 +1,330 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { parseRoom, parseItem, parseEnding, parseEncounterNarration, narration, registerEncounterNarrations, _resetEncounterNarrationRegistry } from './loader'
+import {
+  parseGame,
+  parseAction,
+  parseLightMechanic,
+  parseResolveMechanic,
+  parseMessages,
+  parseParser,
+  parseUi,
+  parseRoom,
+  parseItem,
+  parseEnding,
+  parseEncounterNarration,
+  narration,
+  registerEncounterNarrations,
+  _resetEncounterNarrationRegistry,
+} from './loader'
+
+const GAME_MD = `---
+id: halfstreet
+title: Halfstreet
+description: A gothic mystery.
+startingRoom: "[[outside-gate]]"
+startingInventory:
+  - "[[letter]]"
+endingPriority:
+  - "true"
+  - wrong
+transcriptCap: 200
+---
+
+## opening-art
+HALFSTREET
+
+## help
+Help text.
+
+## ended
+The story has ended.
+`
+
+describe('parseGame', () => {
+  it('parses manifest frontmatter and sections', () => {
+    const game = parseGame(GAME_MD, 'game.md')
+    expect(game).toEqual({
+      id: 'halfstreet',
+      title: 'Halfstreet',
+      description: 'A gothic mystery.',
+      startingRoom: 'outside-gate',
+      startingInventory: ['letter'],
+      endingPriority: ['true', 'wrong'],
+      transcriptCap: 200,
+      openingArt: 'HALFSTREET',
+      helpText: 'Help text.',
+      endedText: 'The story has ended.',
+    })
+  })
+
+  it('throws when a required section is missing', () => {
+    const incomplete = GAME_MD.replace('## help\nHelp text.\n\n', '')
+    expect(() => parseGame(incomplete, 'game.md')).toThrow(/missing required section.*help/i)
+  })
+})
+
+const PARSER_MD = `---
+directions:
+  n: [n, north]
+  s: [s, south]
+  e: [e, east]
+  w: [w, west]
+  u: [u, up]
+  d: [d, down]
+prepositions: [with, on]
+stopWords: [the]
+noTargetVerbs: [look]
+metaVerbs: [restart]
+verbs:
+  go: [go]
+  look: [look, observe]
+  take: [take, pick up]
+---
+
+# Parser Vocabulary
+`
+
+describe('parseParser', () => {
+  it('parses parser vocabulary frontmatter', () => {
+    const parser = parseParser(PARSER_MD, 'parser.md')
+    expect(parser.verbs.look).toEqual(['look', 'observe'])
+    expect(parser.verbs.take).toContain('pick up')
+    expect(parser.directions.n).toEqual(['n', 'north'])
+    expect(parser.noTargetVerbs).toEqual(['look'])
+  })
+
+  it('rejects unsupported verb keys', () => {
+    const invalid = PARSER_MD.replace('  take: [take, pick up]', '  dance: [dance]')
+    expect(() => parseParser(invalid, 'parser.md')).toThrow()
+  })
+})
+
+const UI_MD = `---
+pageTitle: Halfstreet - Ethan J Lewis
+description: A gothic mystery.
+robots: noindex
+themeColor: "#1a0d00"
+footer:
+  copyright: "© 2026 Ethan J Lewis"
+  copyrightHref: https://ethanjlewis.com
+  buildLabel: "Build #"
+  showBuild: true
+  links:
+    - label: GNU 3.0
+      href: https://half.st/ejlewis/halfstreet/src/branch/main/LICENSE
+    - label: Source Code
+      href: https://half.st/ejlewis/halfstreet
+features:
+  chips: true
+  lightMeter: true
+  typedEffect: true
+  roomScroll: true
+---
+
+# UI
+`
+
+describe('parseUi', () => {
+  it('parses site metadata, footer config, and feature toggles', () => {
+    const ui = parseUi(UI_MD, 'ui.md')
+    expect(ui.pageTitle).toBe('Halfstreet - Ethan J Lewis')
+    expect(ui.footer.buildLabel).toBe('Build #')
+    expect(ui.footer.links.map((link) => link.label)).toEqual(['GNU 3.0', 'Source Code'])
+    expect(ui.features).toEqual({
+      chips: true,
+      lightMeter: true,
+      typedEffect: true,
+      roomScroll: true,
+    })
+  })
+})
+
+const LIGHT_MECHANIC_MD = `---
+enabled: true
+handler: light
+maxTurns: 3
+burnOn: [wait]
+stateKeys:
+  lit: isLit
+  burn: fuel
+ui:
+  meter: true
+  icon: candle
+---
+
+## noLighter
+No flame.
+
+## flameDies
+Dark again.
+`
+
+describe('parseLightMechanic', () => {
+  it('parses configurable light mechanic frontmatter and messages', () => {
+    const light = parseLightMechanic(LIGHT_MECHANIC_MD, 'mechanics/light.md')
+    expect(light.enabled).toBe(true)
+    expect(light.maxTurns).toBe(3)
+    expect(light.burnOn).toEqual(['wait'])
+    expect(light.stateKeys).toEqual({ lit: 'isLit', burn: 'fuel' })
+    expect(light.messages?.noLighter).toBe('No flame.')
+    expect(light.messages?.flameDies).toBe('Dark again.')
+  })
+
+  it('rejects unknown light message sections', () => {
+    const invalid = `${LIGHT_MECHANIC_MD}
+## typo
+No.
+`
+    expect(() => parseLightMechanic(invalid, 'mechanics/light.md')).toThrow(/unknown light mechanic section "## typo"/)
+  })
+})
+
+const RESOLVE_MECHANIC_MD = `---
+enabled: true
+handler: resolve
+ladder: [steady, shaken, reeling, returning]
+wrongVerbCost: 2
+safeRooms:
+  recoverySteps: 2
+failure:
+  retreatAt: returning
+  afterRetreat: reeling
+---
+
+# Resolve
+`
+
+describe('parseResolveMechanic', () => {
+  it('parses configurable resolve mechanic frontmatter', () => {
+    const resolve = parseResolveMechanic(RESOLVE_MECHANIC_MD, 'mechanics/resolve.md')
+    expect(resolve.enabled).toBe(true)
+    expect(resolve.ladder).toEqual(['steady', 'shaken', 'reeling', 'returning'])
+    expect(resolve.wrongVerbCost).toBe(2)
+    expect(resolve.safeRooms.recoverySteps).toBe(2)
+    expect(resolve.failure.afterRetreat).toBe('reeling')
+  })
+
+  it('rejects failure levels outside the ladder', () => {
+    const invalid = RESOLVE_MECHANIC_MD.replace('ladder: [steady, shaken, reeling, returning]', 'ladder: [steady, shaken]')
+    expect(() => parseResolveMechanic(invalid, 'mechanics/resolve.md')).toThrow(/failure\.retreatAt must be present in ladder/)
+  })
+})
+
+const ACTION_MD = `---
+id: burn-letter
+verbs: [use]
+requires:
+  allVisibleOrHeld:
+    - "[[letter]]"
+    - "[[matches]]"
+consumes:
+  inventory:
+    - "[[letter]]"
+decrements:
+  item: "[[matches]]"
+  stateKey: uses
+setsFlags:
+  letterBurned: true
+---
+
+## success
+The letter catches at one corner. In a few breaths it is ash.
+
+## spent
+The matchbook is empty.
+`
+
+const HANDLER_ACTION_MD = `---
+id: drink-whiskey
+verbs: [drink]
+handler: drunk-transition
+requires:
+  allHeld:
+    - "[[whiskey]]"
+consumes:
+  inventory:
+    - "[[whiskey]]"
+drunkTransition:
+  destinationRoom: "[[drunk-hall]]"
+  maxMoves: 20
+  wakeRoom: "[[foyer]]"
+  resetRoom: "[[kitchen]]"
+---
+
+## success
+You drink from the bottle.
+
+## secretFoundPassOut
+The faceless man steps backward.
+
+## tooManyMovesPassOut
+The rooms keep turning.
+
+## reset
+The bottle is not with you.
+`
+
+describe('parseAction', () => {
+  it('parses a declarative action with wikilinks and sections', () => {
+    const action = parseAction(ACTION_MD, 'actions/burn-letter.md')
+    expect(action.id).toBe('burn-letter')
+    expect(action.verbs).toEqual(['use'])
+    expect(action.requires?.allVisibleOrHeld).toEqual(['letter', 'matches'])
+    expect(action.consumes?.inventory).toEqual(['letter'])
+    expect(action.decrements).toEqual({ item: 'matches', stateKey: 'uses' })
+    expect(action.setsFlags).toEqual({ letterBurned: true })
+    expect(action.messages.success).toContain('ash')
+  })
+
+  it('parses a handler-backed drunk transition action', () => {
+    const action = parseAction(HANDLER_ACTION_MD, 'actions/drink-whiskey.md')
+    expect(action.id).toBe('drink-whiskey')
+    expect(action.handler).toBe('drunk-transition')
+    expect(action.requires?.allHeld).toEqual(['whiskey'])
+    expect(action.consumes?.inventory).toEqual(['whiskey'])
+    expect(action.drunkTransition).toEqual({
+      destinationRoom: 'drunk-hall',
+      maxMoves: 20,
+      wakeRoom: 'foyer',
+      resetRoom: 'kitchen',
+    })
+    expect(action.messages.tooManyMovesPassOut).toContain('turning')
+  })
+
+  it('requires a success section', () => {
+    const invalid = ACTION_MD.replace(/## success[\s\S]*?## spent/, '## spent')
+    expect(() => parseAction(invalid, 'actions/burn-letter.md')).toThrow(/missing required section "## success"/)
+  })
+
+  it('requires handler-specific sections for drunk transition actions', () => {
+    const invalid = HANDLER_ACTION_MD.replace(/## tooManyMovesPassOut[\s\S]*?## reset/, '## reset')
+    expect(() => parseAction(invalid, 'actions/drink-whiskey.md')).toThrow(
+      /missing required section "## tooManyMovesPassOut" for handler "drunk-transition"/,
+    )
+  })
+})
+
+const MESSAGES_MD = `## unknown-verb
+No.
+
+## inventory-empty
+Nothing held.
+`
+
+describe('parseMessages', () => {
+  it('parses keyed message sections', () => {
+    expect(parseMessages(MESSAGES_MD, 'messages.md')).toEqual({
+      'unknown-verb': 'No.',
+      'inventory-empty': 'Nothing held.',
+    })
+  })
+
+  it('rejects unknown message keys', () => {
+    const invalid = `## typo-key
+No.
+`
+    expect(() => parseMessages(invalid, 'messages.md')).toThrow(/unknown message section "## typo-key"/)
+  })
+})
 
 const FOYER_MD = `---
 id: foyer
@@ -251,6 +576,24 @@ const RAT_MD = `---
 id: rat
 startsIn: "[[cellar-stair]]"
 initialPhase: lurking
+onResolved:
+  setFlags:
+    ratGone: true
+defaultWrongVerbNarration: wrong-verb
+phases:
+  lurking:
+    description: lurking
+    transitions:
+      - verb: attack
+        target: rat
+        chipLabel: ATTACK RAT
+        chipCommand: attack rat
+        narration: attack-resolved
+        to: resolved
+      - verb: wait
+        chipLabel: WAIT
+        narration: wait-stays
+        to: lurking
 ---
 
 ## lurking
@@ -261,6 +604,9 @@ You stamp. The rat squeals and is gone into the dark.
 
 ## wait-stays
 The rat does not move. Neither do you.
+
+## wrong-verb
+The rat watches.
 `
 
 describe('parseEncounterNarration', () => {
@@ -273,7 +619,41 @@ describe('parseEncounterNarration', () => {
       lurking: 'A heavy rat watches you from the third step. Its eyes catch the light.',
       'attack-resolved': 'You stamp. The rat squeals and is gone into the dark.',
       'wait-stays': 'The rat does not move. Neither do you.',
+      'wrong-verb': 'The rat watches.',
     })
+    expect(doc.encounter).toMatchObject({
+      id: 'rat',
+      startsIn: 'cellar-stair',
+      initialPhase: 'lurking',
+      onResolved: { setFlags: { ratGone: true } },
+      defaultWrongVerbNarration: 'The rat watches.',
+    })
+    const lurking = doc.encounter?.phases.lurking
+    expect(lurking).toBeDefined()
+    expect(lurking?.description).toContain('heavy rat')
+    expect(lurking?.transitions).toEqual([
+      {
+        verb: 'attack',
+        target: 'rat',
+        chipLabel: 'ATTACK RAT',
+        chipCommand: 'attack rat',
+        narration: 'You stamp. The rat squeals and is gone into the dark.',
+        to: 'resolved',
+      },
+      {
+        verb: 'wait',
+        chipLabel: 'WAIT',
+        narration: 'The rat does not move. Neither do you.',
+        to: 'lurking',
+      },
+    ])
+  })
+
+  it('throws when encounter frontmatter points at a missing prose section', () => {
+    const invalid = RAT_MD.replace('narration: attack-resolved', 'narration: missing-key')
+    expect(() => parseEncounterNarration(invalid, 'encounters/rat.md')).toThrow(
+      /frontmatter references missing section "## missing-key"/,
+    )
   })
 
   it('throws when no sections are present', () => {

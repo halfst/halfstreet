@@ -2,6 +2,26 @@
 id: bone-keeper
 startsIn: "[[ossuary]]"
 initialPhase: arranging
+aliases: [bone keeper, keeper, hands, bones, ribs]
+onResolved:
+  setFlags:
+    burialRingPlaced: true
+onFailed:
+  narration: failed
+  retreatTo: "[[tunnel]]"
+defaultWrongVerbNarration: wrong-verb
+phases:
+  arranging:
+    description: arranging
+    transitions:
+      - verb: drop
+        target: "[[burial-ring]]"
+        chipLabel: LEAVE RING
+        chipCommand: leave ring
+        requires:
+          item: "[[burial-ring]]"
+        narration: leave-burial-ring-resolved
+        to: resolved
 ---
 
 ## arranging
