@@ -1,5 +1,7 @@
 ---
 import '../ui/crt.css'
+
+const buildNumber = process.env.CI_PIPELINE_NUMBER ?? 'local'
 ---
 
 <html lang="en">
@@ -79,6 +81,8 @@ import '../ui/crt.css'
         © 2026 <a href="https://ethanjlewis.com">Ethan J Lewis</a>
         <span aria-hidden="true">|</span>
         <a href="https://half.st/ejlewis/halfstreet/src/branch/main/LICENSE">GNU 3.0</a>
+        <span aria-hidden="true">|</span>
+        <span>Build #{buildNumber}</span>
         <span aria-hidden="true">|</span>
         <a href="https://half.st/ejlewis/halfstreet">Source Code</a>
       </footer>

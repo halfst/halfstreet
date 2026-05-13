@@ -22,6 +22,22 @@ npm run dev       # local dev server
 npm run build     # type-check + production build
 ```
 
+## Releases
+
+The footer build number comes from Woodpecker's pipeline number and increments on each CI build.
+The package version is an intentional release label.
+
+Use one of these from a clean worktree when you are ready to cut a release:
+
+```sh
+npm run release:patch  # fixes, typo corrections, small polish
+npm run release:minor  # meaningful playable additions or mechanics
+npm run release:major  # disruptive changes after 1.0.0
+git push --follow-tags
+```
+
+Each release script updates `package.json` and `package-lock.json`, creates a release commit, and tags it.
+
 ## Layout
 
 - `src/engine/` — parser, dispatcher, encounter logic
